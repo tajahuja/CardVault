@@ -1,0 +1,137 @@
+<?php
+/**
+ * User Login Page
+ */
+
+require_once __DIR__ . '/includes/auth.php';
+require_once __DIR__ . '/includes/csrf.php';
+require_once __DIR__ . '/includes/functions.php';
+
+// If already logged in, redirect to dashboard
+if (is_logged_in()) {
+    header('Location: dashboard.php');
+    exit;
+}
+
+$notice = '';
+$noticeClass = 'info';
+
+if (isset($_GET['logged_out'])) {
+    $notice = 'You have been successfully logged out.';
+    $noticeClass = 'success';
+} elseif (isset($_GET['expired'])) {
+    $notice = 'Your session has expired due to inactivity. Please log in again.';
+    $noticeClass = 'warning';
+}
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - CardVault</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="auth-body">
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <div class="logo">
+                    <span class="logo-icon">🗂️</span>
+                    <span class="logo-text">Card<span>Vault</span></span>
+                </div>
+                <p class="auth-subtitle">Secure Business Card Scanner & Personal CRM</p>
+            </div>
+
+            <?php if (!empty($notice)): ?>
+                <div class="alert alert-<?php echo $noticeClass; ?>">
+                    <?php echo e($notice); ?>
+                </div>
+            <?php endif; ?>
+
+            <div id="error-alert" class="alert alert-danger hidden"></div>
+
+            <form id="login-form" method="POST" action="api/login.php" class="auth-form">
+                <?php csrf_field(); ?>
+                
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" name="email" required placeholder="name@company.com" autocomplete="email">
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required placeholder="••••••••" autocomplete="current-password">
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-block" id="submit-btn">
+                    <span class="btn-text">Sign In</span>
+                    <span class="spinner hidden"></span>
+                </button>
+            </form>
+
+            <div class="auth-footer">
+                <p>Don't have an account? <a href="register.php">Register here</a></p>
+                <p class="privacy-link"><a href="privacy.php">Privacy Policy</a></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('login-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const form = this;
+            const errorAlert = document.getElementById('error-alert');
+            const submitBtn = document.getElementById('submit-btn');
+            const btnText = submitBtn.querySelector('.btn-text');
+            const spinner = submitBtn.querySelector('.spinner');
+
+            // Reset UI state
+            errorAlert.classList.add('hidden');
+            errorAlert.textContent = '';
+            submitBtn.disabled = true;
+            btnText.textContent = 'Signing in...';
+            spinner.classList.remove('hidden');
+
+            const formData = new FormData(form);
+
+            fetch(form.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRF-Token': formData.get('csrf_token')
+                }
+            })
+            .then(response => {
+                return response.json().then(data => {
+                    if (!response.ok) {
+                        throw new Error(data.message || 'Login failed. Please try again.');
+                    }
+                    return data;
+                });
+            })
+            .then(data => {
+                if (data.success && data.redirect) {
+                    window.location.href = data.redirect;
+                } else {
+                    throw new Error('An unexpected response was received.');
+                }
+            })
+            .catch(error => {
+                errorAlert.textContent = error.message;
+                errorAlert.classList.remove('hidden');
+                
+                // Restore button state
+                submitBtn.disabled = false;
+                btnText.textContent = 'Sign In';
+                spinner.classList.add('hidden');
+            });
+        });
+    </script>
+</body>
+</html>

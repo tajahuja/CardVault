@@ -1,0 +1,23 @@
+# Disable directory browsing
+Options -Indexes
+
+# Disable execution of scripts in this directory
+<FilesMatch "\.(php|phtml|php3|php4|php5|php7|php8|phps|pl|py|cgi|sh|asp|aspx|xml)$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+
+# Prevent PHP script execution if engine is active
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php7.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php8.c>
+    php_flag engine off
+</IfModule>
+
+# Remove handlers to ensure server treats all files as plain assets/images
+RemoveHandler .php .phtml .php3 .php4 .php5 .php7 .php8 .phps
+RemoveType .php .phtml .php3 .php4 .php5 .php7 .php8 .phps

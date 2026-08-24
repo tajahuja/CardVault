@@ -1,0 +1,7 @@
+# Block directory indexing
+Options -Indexes
+
+# Ensure cookies are secure
+<IfModule mod_headers.c>
+    Header always edit Set-Cookie ^(.*)$ "$1; HttpOnly; Secure; SameSite=Lax"
+</IfModule>

@@ -1,0 +1,39 @@
+# CardVault Git Ignore File
+
+# Exclude sensitive environment-specific database credentials
+config/database.php
+
+# Exclude uploaded business card images but preserve structural security .htaccess
+uploads/business_cards/*
+!uploads/business_cards/.htaccess
+
+# Exclude ZIP archives and backups
+*.zip
+*.rar
+*.tar.gz
+
+# Exclude local logs and debug files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Exclude temporary session and storage logs
+tmp/
+temp/
+sessions/
+
+# Exclude OS-specific system files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+
+# Exclude IDE/Editor configurations
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
