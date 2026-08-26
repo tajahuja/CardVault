@@ -198,8 +198,25 @@ try {
     $newFollowUp = $followUpDate ? date('Y-m-d', strtotime($followUpDate)) : null;
     if ($oldFollowUp !== $newFollowUp) {
         if ($newFollowUp === null) {
+            // Clear pending follow-ups
+            $stmtDelFu = $pdo->prepare("DELETE FROM follow_ups WHERE contact_id = :contact_id AND user_id = :user_id AND status = 'Pending'");
+            $stmtDelFu->execute(['contact_id' => $contactId, 'user_id' => $userId]);
             log_interaction($contactId, 'Follow-up', 'Follow-up date cleared.');
         } else {
+            // Check if there is an existing pending follow-up
+            $stmtChkFu = $pdo->prepare("SELECT id FROM follow_ups WHERE contact_id = :contact_id AND user_id = :user_id AND status = 'Pending' ORDER BY follow_up_date ASC LIMIT 1");
+            $stmtChkFu->execute(['contact_id' => $contactId, 'user_id' => $userId]);
+            $fuId = $stmtChkFu->fetchColumn();
+
+            if ($fuId) {
+                // Reschedule it
+                $stmtUpdFu = $pdo->prepare("UPDATE follow_ups SET follow_up_date = :new_date WHERE id = :id AND user_id = :user_id");
+                $stmtUpdFu->execute(['new_date' => $newFollowUp, 'id' => $fuId, 'user_id' => $userId]);
+            } else {
+                // Create a new pending follow-up
+                $stmtInsFu = $pdo->prepare("INSERT INTO follow_ups (contact_id, user_id, follow_up_date, priority, status, notes) VALUES (:contact_id, :user_id, :new_date, 'Medium', 'Pending', 'Follow-up scheduled from profile update.')");
+                $stmtInsFu->execute(['contact_id' => $contactId, 'user_id' => $userId, 'new_date' => $newFollowUp]);
+            }
             log_interaction($contactId, 'Follow-up', "Follow-up rescheduled to " . format_date_user($newFollowUp) . ".");
         }
         $changesMade[] = "follow-up";

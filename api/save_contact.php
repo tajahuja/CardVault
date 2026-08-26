@@ -235,6 +235,15 @@ try {
     }
 
     if ($followUpDate) {
+        $stmtFu = $pdo->prepare("
+            INSERT INTO follow_ups (contact_id, user_id, follow_up_date, priority, status, notes) 
+            VALUES (:contact_id, :user_id, :follow_up_date, 'Medium', 'Pending', 'Initial follow-up scheduled after contact registration.')
+        ");
+        $stmtFu->execute([
+            'contact_id' => $contactId,
+            'user_id' => $userId,
+            'follow_up_date' => $followUpDate
+        ]);
         log_interaction($contactId, 'Follow-up', 'Initial follow-up scheduled for ' . format_date_user($followUpDate) . '.');
     }
     

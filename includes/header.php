@@ -33,6 +33,46 @@ if (!empty($_SESSION['user_name'])) {
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <?php echo $additionalHead ?? ''; ?>
+    <script>
+        // Global SaaS toast notifications
+        window.showToast = function(message, type = 'info') {
+            let container = document.getElementById('toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'toast-container';
+                document.body.appendChild(container);
+            }
+            
+            const toast = document.createElement('div');
+            toast.className = `toast-message ${type}`;
+            
+            const content = document.createElement('div');
+            content.className = 'toast-content';
+            content.textContent = message;
+            toast.appendChild(content);
+            
+            const closeBtn = document.createElement('button');
+            closeBtn.className = 'toast-close';
+            closeBtn.innerHTML = '&times;';
+            closeBtn.setAttribute('aria-label', 'Close notification');
+            closeBtn.onclick = function() {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(-10px)';
+                setTimeout(() => toast.remove(), 200);
+            };
+            toast.appendChild(closeBtn);
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.style.opacity = '0';
+                    toast.style.transform = 'translateY(-10px)';
+                    setTimeout(() => toast.remove(), 200);
+                }
+            }, 4000);
+        };
+    </script>
 </head>
 <body>
     <div class="app-wrapper">
@@ -44,15 +84,39 @@ if (!empty($_SESSION['user_name'])) {
                     <span class="logo-text">Card<span>Vault</span></span>
                 </a>
             </div>
-            <nav class="sidebar-nav">
+            <nav class="sidebar-nav" style="overflow-y: auto; max-height: calc(100vh - 180px);">
                 <a href="dashboard.php" class="nav-link <?php echo is_active_nav('dashboard.php', $currentPage); ?>">
                     <span class="nav-icon">📊</span> Dashboard
+                </a>
+                <a href="scan.php" class="nav-link <?php echo is_active_nav('scan.php', $currentPage); ?>">
+                    <span class="nav-icon">📸</span> Scan Card
                 </a>
                 <a href="contacts.php" class="nav-link <?php echo is_active_nav('contacts.php', $currentPage); ?>">
                     <span class="nav-icon">👥</span> Contacts
                 </a>
-                <a href="scan.php" class="nav-link <?php echo is_active_nav('scan.php', $currentPage); ?>">
-                    <span class="nav-icon">📸</span> Scan Card
+                <a href="companies.php" class="nav-link <?php echo is_active_nav('companies.php', $currentPage); ?>">
+                    <span class="nav-icon">🏢</span> Companies
+                </a>
+                <a href="follow-ups.php" class="nav-link <?php echo is_active_nav('follow-ups.php', $currentPage); ?>">
+                    <span class="nav-icon">⏰</span> Follow-ups
+                </a>
+                <a href="pipeline.php" class="nav-link <?php echo is_active_nav('pipeline.php', $currentPage); ?>">
+                    <span class="nav-icon">🗂️</span> Pipeline
+                </a>
+                <a href="events.php" class="nav-link <?php echo is_active_nav('events.php', $currentPage); ?>">
+                    <span class="nav-icon">📅</span> Events
+                </a>
+                <a href="my-card.php" class="nav-link <?php echo is_active_nav('my-card.php', $currentPage); ?>">
+                    <span class="nav-icon">🎴</span> My Digital Card
+                </a>
+                <a href="analytics.php" class="nav-link <?php echo is_active_nav('analytics.php', $currentPage); ?>">
+                    <span class="nav-icon">📈</span> Analytics
+                </a>
+                <a href="integrations.php" class="nav-link <?php echo is_active_nav('integrations.php', $currentPage); ?>">
+                    <span class="nav-icon">🔌</span> Integrations
+                </a>
+                <a href="upgrade.php" class="nav-link <?php echo is_active_nav('upgrade.php', $currentPage); ?>">
+                    <span class="nav-icon">⭐</span> Upgrade
                 </a>
                 <a href="settings.php" class="nav-link <?php echo is_active_nav('settings.php', $currentPage); ?>">
                     <span class="nav-icon">⚙️</span> Settings
@@ -84,13 +148,13 @@ if (!empty($_SESSION['user_name'])) {
                     <span class="mobile-link-icon">📸</span>
                     <span>Scan</span>
                 </a>
+                <a href="follow-ups.php" class="mobile-link <?php echo is_active_nav('follow-ups.php', $currentPage); ?>">
+                    <span class="mobile-link-icon">⏰</span>
+                    <span>Follow-ups</span>
+                </a>
                 <a href="settings.php" class="mobile-link <?php echo is_active_nav('settings.php', $currentPage); ?>">
                     <span class="mobile-link-icon">⚙️</span>
                     <span>Settings</span>
-                </a>
-                <a href="logout.php" class="mobile-link">
-                    <span class="mobile-link-icon">🚪</span>
-                    <span>Out</span>
                 </a>
             </div>
         </nav>
