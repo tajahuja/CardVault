@@ -107,9 +107,9 @@ $websiteUrl = clean_url($contact['website']);
 
         <!-- WhatsApp -->
         <?php if ($whatsAppUrl): ?>
-            <a href="<?php echo $whatsAppUrl; ?>" target="_blank" class="btn btn-secondary" style="font-size: 0.85rem; padding: 0.5rem 0.85rem; display: flex; align-items: center; gap: 0.35rem; background-color: #25d366; color: white; border-color: #20ba5a;">
+            <button type="button" class="btn btn-secondary" onclick="triggerWhatsAppComposer(<?php echo $contact['id']; ?>, '<?php echo e(addslashes($contact['full_name'])); ?>', '<?php echo e(addslashes($contact['phone'])); ?>', '<?php echo e(addslashes($contact['company'])); ?>', '<?php echo e(addslashes($contact['place_met'])); ?>')" style="font-size: 0.85rem; padding: 0.5rem 0.85rem; display: flex; align-items: center; gap: 0.35rem; background-color: #25d366; color: white; border-color: #20ba5a;">
                 <span style="font-size: 1rem;">💬</span> WhatsApp
-            </a>
+            </button>
         <?php else: ?>
             <button class="btn btn-secondary" disabled style="font-size: 0.85rem; padding: 0.5rem 0.85rem; opacity: 0.5; cursor: not-allowed; display: flex; align-items: center; gap: 0.35rem;">
                 <span>💬</span> WhatsApp
@@ -118,9 +118,9 @@ $websiteUrl = clean_url($contact['website']);
 
         <!-- Email -->
         <?php if ($contact['email']): ?>
-            <a href="mailto:<?php echo e($contact['email']); ?>" class="btn btn-secondary" style="font-size: 0.85rem; padding: 0.5rem 0.85rem; display: flex; align-items: center; gap: 0.35rem;">
+            <button type="button" class="btn btn-secondary" onclick="triggerEmailComposer(<?php echo $contact['id']; ?>, '<?php echo e(addslashes($contact['full_name'])); ?>', '<?php echo e(addslashes($contact['email'])); ?>', '<?php echo e(addslashes($contact['company'])); ?>', '<?php echo e(addslashes($contact['place_met'])); ?>')" style="font-size: 0.85rem; padding: 0.5rem 0.85rem; display: flex; align-items: center; gap: 0.35rem;">
                 <span>✉️</span> Send Email
-            </a>
+            </button>
         <?php else: ?>
             <button class="btn btn-secondary" disabled style="font-size: 0.85rem; padding: 0.5rem 0.85rem; opacity: 0.5; cursor: not-allowed; display: flex; align-items: center; gap: 0.35rem;">
                 <span>✉️</span> Send Email
@@ -758,8 +758,6 @@ $websiteUrl = clean_url($contact['website']);
 
     // 4. AUTOMATIC ACTION LOGGING SYSTEM
     const callBtn = document.querySelector('a[href^="tel:"]');
-    const emailBtn = document.querySelector('a[href^="mailto:"]');
-    const whatsappBtn = document.querySelector('a[href*="wa.me"]');
     
     function logAction(type, description) {
         const formData = new FormData();
@@ -790,16 +788,6 @@ $websiteUrl = clean_url($contact['website']);
     if (callBtn) {
         callBtn.addEventListener('click', () => {
             logAction('Call', 'Initiated phone call to mobile.');
-        });
-    }
-    if (emailBtn) {
-        emailBtn.addEventListener('click', () => {
-            logAction('Email', 'Initiated outbound email.');
-        });
-    }
-    if (whatsappBtn) {
-        whatsappBtn.addEventListener('click', () => {
-            logAction('WhatsApp', 'Opened WhatsApp chat window.');
         });
     }
 

@@ -82,7 +82,7 @@ switch ($filter) {
 $followUps = [];
 try {
     $sql = "
-        SELECT f.*, c.full_name, c.company, c.job_title, c.phone, c.email, c.website,
+        SELECT f.*, c.full_name, c.company, c.job_title, c.phone, c.email, c.website, c.place_met,
                (SELECT CONCAT(type, '|', description, '|', created_at) 
                 FROM interactions 
                 WHERE contact_id = f.contact_id AND user_id = f.user_id 
@@ -373,11 +373,11 @@ require_once __DIR__ . '/includes/header.php';
                     
                     <?php if ($fu['phone']): ?>
                         <a href="tel:<?php echo e($fu['phone']); ?>" class="btn btn-secondary btn-action-sm" onclick="logQuickAction(<?php echo $fu['contact_id']; ?>, 'Call', 'Called contact mobile.')">📞 Call</a>
-                        <a href="https://wa.me/<?php echo preg_replace('/\D/', '', $fu['phone']); ?>" target="_blank" class="btn btn-secondary btn-action-sm" style="background-color: #25d366; color: white; border-color: #20ba5a;" onclick="logQuickAction(<?php echo $fu['contact_id']; ?>, 'WhatsApp', 'Initiated WhatsApp follow-up.')">💬 WhatsApp</a>
+                        <button type="button" class="btn btn-secondary btn-action-sm" style="background-color: #25d366; color: white; border-color: #20ba5a;" onclick="triggerWhatsAppComposer(<?php echo $fu['contact_id']; ?>, '<?php echo e(addslashes($fu['full_name'])); ?>', '<?php echo e(addslashes($fu['phone'])); ?>', '<?php echo e(addslashes($fu['company'])); ?>', '<?php echo e(addslashes($fu['place_met'])); ?>')">💬 WhatsApp</button>
                     <?php endif; ?>
                     
                     <?php if ($fu['email']): ?>
-                        <a href="mailto:<?php echo e($fu['email']); ?>" class="btn btn-secondary btn-action-sm" onclick="logQuickAction(<?php echo $fu['contact_id']; ?>, 'Email', 'Initiated outbound email follow-up.')">✉️ Email</a>
+                        <button type="button" class="btn btn-secondary btn-action-sm" onclick="triggerEmailComposer(<?php echo $fu['contact_id']; ?>, '<?php echo e(addslashes($fu['full_name'])); ?>', '<?php echo e(addslashes($fu['email'])); ?>', '<?php echo e(addslashes($fu['company'])); ?>', '<?php echo e(addslashes($fu['place_met'])); ?>')">✉️ Email</button>
                     <?php endif; ?>
                 </div>
             </div>
