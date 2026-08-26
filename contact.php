@@ -51,6 +51,16 @@ try {
     $stmtInt->execute(['contact_id' => $contactId, 'user_id' => $userId]);
     $interactions = $stmtInt->fetchAll();
 
+    // Fetch active pending follow-up
+    $stmtFu = $pdo->prepare("
+        SELECT * FROM follow_ups 
+        WHERE contact_id = :contact_id AND user_id = :user_id AND status = 'Pending' 
+        ORDER BY follow_up_date ASC 
+        LIMIT 1
+    ");
+    $stmtFu->execute(['contact_id' => $contactId, 'user_id' => $userId]);
+    $activeFollowUp = $stmtFu->fetch();
+
 } catch (\PDOException $e) {
     error_log("Contact detail load DB error: " . $e->getMessage());
     echo '<div class="alert alert-danger">An error occurred while loading contact details.</div>';
@@ -374,51 +384,73 @@ $websiteUrl = clean_url($contact['website']);
 
     <!-- Side Column: Business Card & Tags -->
     <div>
-        <!-- Follow-up Alert Card -->
+        <!-- Follow-up Schedule Card -->
         <div class="card" style="margin-bottom: 1.5rem;">
             <div class="card-header"><h3 class="card-title">⏰ Follow-up Schedule</h3></div>
             <div class="card-body">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
-                    <div>
-                        <div style="font-size: 0.8rem; color: var(--text-muted);">Scheduled Date</div>
-                        <div id="followup-date-display" style="font-weight: 600; font-size: 1.05rem; color: var(--warning-color);">
-                            <?php echo $contact['follow_up_date'] ? format_date_user($contact['follow_up_date']) : 'Not scheduled'; ?>
+                <?php if ($activeFollowUp): 
+                    $overdue = ($activeFollowUp['follow_up_date'] < $today);
+                    $isToday = ($activeFollowUp['follow_up_date'] === $today);
+                    $dueDateStyle = 'color: var(--success-color);';
+                    if ($overdue) {
+                        $dueDateStyle = 'color: var(--danger-color);';
+                    } elseif ($isToday) {
+                        $dueDateStyle = 'color: var(--warning-color);';
+                    }
+                ?>
+                    <div style="margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem;">
+                        <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.15rem;">Next Touchpoint</div>
+                        <div style="font-weight: 600; font-size: 1.1rem; <?php echo $dueDateStyle; ?>">
+                            <?php echo $overdue ? '⚠️ Overdue (' . format_date_user($activeFollowUp['follow_up_date']) . ')' : ($isToday ? '📅 Today' : format_date_user($activeFollowUp['follow_up_date'])); ?>
+                        </div>
+                        <div style="margin-top: 0.35rem; display: flex; gap: 0.25rem;">
+                            <span class="badge badge-<?php echo strtolower($activeFollowUp['priority']); ?>"><?php echo $activeFollowUp['priority']; ?> Priority</span>
+                            <span class="badge badge-secondary">Pending</span>
+                        </div>
+                        <?php if ($activeFollowUp['notes']): ?>
+                            <div style="font-size: 0.8rem; font-style: italic; color: var(--text-muted); margin-top: 0.5rem; line-height: 1.4; border-left: 2px solid var(--border-color); padding-left: 0.5rem;">
+                                <?php echo e($activeFollowUp['notes']); ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                        <button type="button" class="btn btn-primary" style="font-size: 0.85rem; padding: 0.45rem;" onclick="openProfileCompleteModal(<?php echo $activeFollowUp['id']; ?>)">✅ Complete Follow-up</button>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                            <button type="button" class="btn btn-secondary" style="font-size: 0.85rem; padding: 0.45rem;" onclick="openProfileSnoozeModal(<?php echo $activeFollowUp['id']; ?>)">⏰ Snooze</button>
+                            <button type="button" class="btn btn-secondary" style="font-size: 0.85rem; padding: 0.45rem;" onclick="openProfileEditModal(<?php echo $activeFollowUp['id']; ?>, '<?php echo $activeFollowUp['follow_up_date']; ?>', '<?php echo $activeFollowUp['priority']; ?>', '<?php echo e(addslashes($activeFollowUp['notes'])); ?>')">✏️ Edit</button>
                         </div>
                     </div>
-                    <div>
-                        <div style="font-size: 0.8rem; color: var(--text-muted);">Current Status</div>
-                        <div style="font-weight: 500; font-size: 0.9rem;"><?php echo e($contact['status']); ?></div>
+                <?php else: ?>
+                    <div style="color: var(--text-muted); font-size: 0.85rem; font-style: italic; margin-bottom: 1rem; text-align: center;">
+                        No pending follow-up scheduled.
                     </div>
-                </div>
-                
-                <!-- Quick Follow-up Form -->
-                <form id="followup-form" action="api/update_contact.php" method="POST">
-                    <?php csrf_field(); ?>
-                    <input type="hidden" name="id" value="<?php echo $contact['id']; ?>">
-                    <!-- Pre-populate other fields with existing data to satisfy API constraints -->
-                    <input type="hidden" name="full_name" value="<?php echo e($contact['full_name']); ?>">
-                    <input type="hidden" name="email" value="<?php echo e($contact['email']); ?>">
-                    <input type="hidden" name="phone" value="<?php echo e($contact['phone']); ?>">
-                    <input type="hidden" name="company" value="<?php echo e($contact['company']); ?>">
-                    <input type="hidden" name="ignore_duplicate" value="1">
                     
-                    <div class="form-group">
-                        <label for="side_follow_up_date" style="font-size: 0.8rem;">Change Follow-up Date</label>
-                        <input type="date" id="side_follow_up_date" name="follow_up_date" value="<?php echo $contact['follow_up_date']; ?>" style="padding: 0.4rem; font-size: 0.85rem;">
-                    </div>
-                    <div class="form-group">
-                        <label for="side_status" style="font-size: 0.8rem;">Update Status</label>
-                        <select id="side_status" name="status" style="padding: 0.4rem; font-size: 0.85rem;">
-                            <?php
-                            foreach ($statuses as $stat) {
-                                $selected = ($contact['status'] === $stat) ? 'selected' : '';
-                                echo '<option value="' . $stat . '" ' . $selected . '>' . $stat . '</option>';
-                            }
-                            ?>
-                        </select>
-                    </div>
-                    <button type="submit" class="btn btn-secondary btn-block" style="font-size: 0.85rem; padding: 0.4rem;">Save Follow-up</button>
-                </form>
+                    <!-- Form to create follow-up -->
+                    <form id="profile-followup-create-form" action="api/followup.php" method="POST">
+                        <?php csrf_field(); ?>
+                        <input type="hidden" name="action" value="create">
+                        <input type="hidden" name="contact_id" value="<?php echo $contact['id']; ?>">
+                        
+                        <div class="form-group" style="margin-bottom: 0.75rem;">
+                            <label for="new_fu_date" style="font-size: 0.8rem; margin-bottom: 0.15rem;">Select Date</label>
+                            <input type="date" id="new_fu_date" name="follow_up_date" required style="padding: 0.4rem; font-size: 0.85rem; margin-bottom: 0;">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0.75rem;">
+                            <label for="new_fu_priority" style="font-size: 0.8rem; margin-bottom: 0.15rem;">Priority</label>
+                            <select id="new_fu_priority" name="priority" style="padding: 0.4rem; font-size: 0.85rem; margin-bottom: 0;">
+                                <option value="Low">Low</option>
+                                <option value="Medium" selected>Medium</option>
+                                <option value="High">High</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0.75rem;">
+                            <label for="new_fu_notes" style="font-size: 0.8rem; margin-bottom: 0.15rem;">Goal / Note</label>
+                            <textarea id="new_fu_notes" name="notes" placeholder="Discuss demo setup..." style="min-height: 50px; font-size: 0.85rem; padding: 0.4rem; margin-bottom: 0;"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-secondary btn-block" style="font-size: 0.85rem; padding: 0.45rem;">Schedule Follow-up</button>
+                    </form>
+                <?php endif; ?>
             </div>
         </div>
 
@@ -797,6 +829,175 @@ $websiteUrl = clean_url($contact['website']);
     // Run on startup
     loadNotes();
     loadTags();
+</script>
+
+<!-- MODAL: COMPLETE FOLLOW-UP -->
+<div id="profile-complete-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3>✅ Complete Follow-up</h3>
+        </div>
+        <form id="profile-complete-form">
+            <?php csrf_field(); ?>
+            <input type="hidden" name="action" value="complete">
+            <input type="hidden" name="id" id="profile-complete-id">
+            <div class="modal-body" style="padding: 1.25rem;">
+                <p>Add follow-up outcome notes:</p>
+                <div class="form-group">
+                    <label for="profile_completion_notes">Follow-up Notes / Outcomes</label>
+                    <textarea id="profile_completion_notes" name="completion_notes" required placeholder="Discussed software specs, scheduled demo session..." style="min-height: 100px; margin-bottom: 0;"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeProfileModal('profile-complete-modal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save & Mark Completed</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: SNOOZE FOLLOW-UP -->
+<div id="profile-snooze-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3>⏰ Snooze Scheduled Follow-up</h3>
+        </div>
+        <form id="profile-snooze-form">
+            <?php csrf_field(); ?>
+            <input type="hidden" name="action" value="snooze">
+            <input type="hidden" name="id" id="profile-snooze-id">
+            <div class="modal-body" style="padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem;">
+                <p>Select snooze duration:</p>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem;">
+                    <button type="button" class="btn btn-secondary" style="font-size: 0.85rem;" onclick="submitProfileSnoozeDays(1)">Tomorrow</button>
+                    <button type="button" class="btn btn-secondary" style="font-size: 0.85rem;" onclick="submitProfileSnoozeDays(3)">3 Days</button>
+                    <button type="button" class="btn btn-secondary" style="font-size: 0.85rem;" onclick="submitProfileSnoozeDays(7)">1 Week</button>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label for="profile_custom_snooze_date">Or select custom date:</label>
+                    <input type="date" id="profile_custom_snooze_date" name="custom_date" style="margin-bottom: 0;">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeProfileModal('profile-snooze-modal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Reschedule Date</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: EDIT FOLLOW-UP -->
+<div id="profile-edit-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3>✏️ Edit Follow-up Details</h3>
+        </div>
+        <form id="profile-edit-form">
+            <?php csrf_field(); ?>
+            <input type="hidden" name="action" value="edit">
+            <input type="hidden" name="id" id="profile-edit-id">
+            <div class="modal-body" style="padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem;">
+                <div class="form-group">
+                    <label for="profile_edit_date">Due Date</label>
+                    <input type="date" id="profile_edit_date" name="follow_up_date" required>
+                </div>
+                <div class="form-group">
+                    <label for="profile_edit_priority">Priority</label>
+                    <select id="profile_edit_priority" name="priority">
+                        <option value="Low">Low</option>
+                        <option value="Medium">Medium</option>
+                        <option value="High">High</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label for="profile_edit_notes">Follow-up Goal / Notes</label>
+                    <textarea id="profile_edit_notes" name="notes" placeholder="Goal of this scheduled conversation..." style="min-height: 80px; margin-bottom: 0;"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeProfileModal('profile-edit-modal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Profile Follow-up Modal Helpers
+    window.openProfileModal = function(id) {
+        document.getElementById(id).classList.remove('hidden');
+    }
+    window.closeProfileModal = function(id) {
+        document.getElementById(id).classList.add('hidden');
+    }
+    window.openProfileCompleteModal = function(id) {
+        document.getElementById('profile-complete-id').value = id;
+        document.getElementById('profile_completion_notes').value = '';
+        openProfileModal('profile-complete-modal');
+    }
+    window.openProfileSnoozeModal = function(id) {
+        document.getElementById('profile-snooze-id').value = id;
+        document.getElementById('profile_custom_snooze_date').value = '';
+        openProfileModal('profile-snooze-modal');
+    }
+    window.submitProfileSnoozeDays = function(days) {
+        const id = document.getElementById('profile-snooze-id').value;
+        const csrfToken = document.querySelector('#profile-snooze-form input[name="csrf_token"]').value;
+        const formData = new FormData();
+        formData.append('action', 'snooze');
+        formData.append('id', id);
+        formData.append('days', days);
+        formData.append('csrf_token', csrfToken);
+        submitFollowUpForm(formData);
+    }
+    window.openProfileEditModal = function(id, date, priority, notes) {
+        document.getElementById('profile-edit-id').value = id;
+        document.getElementById('profile_edit_date').value = date;
+        document.getElementById('profile_edit_priority').value = priority;
+        document.getElementById('profile_edit_notes').value = notes;
+        openProfileModal('profile-edit-modal');
+    }
+
+    function submitFollowUpForm(formData) {
+        fetch('api/followup.php', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert(data.message || 'Operation failed.');
+            }
+        })
+        .catch(err => alert('Error: ' + err.message));
+    }
+
+    // Bind profile forms
+    document.getElementById('profile-complete-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        submitFollowUpForm(new FormData(this));
+    });
+    document.getElementById('profile-snooze-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        submitFollowUpForm(new FormData(this));
+    });
+    document.getElementById('profile-edit-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        submitFollowUpForm(new FormData(this));
+    });
+
+    const createFuForm = document.getElementById('profile-followup-create-form');
+    if (createFuForm) {
+        createFuForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            submitFollowUpForm(new FormData(this));
+        });
+    }
 </script>
 
 <?php

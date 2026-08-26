@@ -44,15 +44,39 @@ if (!empty($_SESSION['user_name'])) {
                     <span class="logo-text">Card<span>Vault</span></span>
                 </a>
             </div>
-            <nav class="sidebar-nav">
+            <nav class="sidebar-nav" style="overflow-y: auto; max-height: calc(100vh - 180px);">
                 <a href="dashboard.php" class="nav-link <?php echo is_active_nav('dashboard.php', $currentPage); ?>">
                     <span class="nav-icon">📊</span> Dashboard
+                </a>
+                <a href="scan.php" class="nav-link <?php echo is_active_nav('scan.php', $currentPage); ?>">
+                    <span class="nav-icon">📸</span> Scan Card
                 </a>
                 <a href="contacts.php" class="nav-link <?php echo is_active_nav('contacts.php', $currentPage); ?>">
                     <span class="nav-icon">👥</span> Contacts
                 </a>
-                <a href="scan.php" class="nav-link <?php echo is_active_nav('scan.php', $currentPage); ?>">
-                    <span class="nav-icon">📸</span> Scan Card
+                <a href="companies.php" class="nav-link <?php echo is_active_nav('companies.php', $currentPage); ?>">
+                    <span class="nav-icon">🏢</span> Companies
+                </a>
+                <a href="follow-ups.php" class="nav-link <?php echo is_active_nav('follow-ups.php', $currentPage); ?>">
+                    <span class="nav-icon">⏰</span> Follow-ups
+                </a>
+                <a href="pipeline.php" class="nav-link <?php echo is_active_nav('pipeline.php', $currentPage); ?>">
+                    <span class="nav-icon">🗂️</span> Pipeline
+                </a>
+                <a href="events.php" class="nav-link <?php echo is_active_nav('events.php', $currentPage); ?>">
+                    <span class="nav-icon">📅</span> Events
+                </a>
+                <a href="my-card.php" class="nav-link <?php echo is_active_nav('my-card.php', $currentPage); ?>">
+                    <span class="nav-icon">🎴</span> My Digital Card
+                </a>
+                <a href="analytics.php" class="nav-link <?php echo is_active_nav('analytics.php', $currentPage); ?>">
+                    <span class="nav-icon">📈</span> Analytics
+                </a>
+                <a href="integrations.php" class="nav-link <?php echo is_active_nav('integrations.php', $currentPage); ?>">
+                    <span class="nav-icon">🔌</span> Integrations
+                </a>
+                <a href="upgrade.php" class="nav-link <?php echo is_active_nav('upgrade.php', $currentPage); ?>">
+                    <span class="nav-icon">⭐</span> Upgrade
                 </a>
                 <a href="settings.php" class="nav-link <?php echo is_active_nav('settings.php', $currentPage); ?>">
                     <span class="nav-icon">⚙️</span> Settings
@@ -84,13 +108,13 @@ if (!empty($_SESSION['user_name'])) {
                     <span class="mobile-link-icon">📸</span>
                     <span>Scan</span>
                 </a>
+                <a href="follow-ups.php" class="mobile-link <?php echo is_active_nav('follow-ups.php', $currentPage); ?>">
+                    <span class="mobile-link-icon">⏰</span>
+                    <span>Follow-ups</span>
+                </a>
                 <a href="settings.php" class="mobile-link <?php echo is_active_nav('settings.php', $currentPage); ?>">
                     <span class="mobile-link-icon">⚙️</span>
                     <span>Settings</span>
-                </a>
-                <a href="logout.php" class="mobile-link">
-                    <span class="mobile-link-icon">🚪</span>
-                    <span>Out</span>
                 </a>
             </div>
         </nav>

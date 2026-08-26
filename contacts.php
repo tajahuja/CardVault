@@ -46,28 +46,43 @@ try {
     $params = ['user_id' => $userId];
     
     if ($search !== '') {
-        $where .= " AND (full_name LIKE :search 
-                         OR company LIKE :search 
-                         OR job_title LIKE :search 
-                         OR phone LIKE :search 
-                         OR email LIKE :search
-                         OR website LIKE :search
-                         OR linkedin_url LIKE :search
-                         OR address LIKE :search
-                         OR city LIKE :search
-                         OR state LIKE :search
-                         OR country LIKE :search
-                         OR postal_code LIKE :search
+        $where .= " AND (full_name LIKE :search_name 
+                         OR company LIKE :search_comp 
+                         OR job_title LIKE :search_job 
+                         OR phone LIKE :search_phone 
+                         OR email LIKE :search_email
+                         OR website LIKE :search_web
+                         OR linkedin_url LIKE :search_li
+                         OR address LIKE :search_addr
+                         OR city LIKE :search_city
+                         OR state LIKE :search_state
+                         OR country LIKE :search_country
+                         OR postal_code LIKE :search_zip
                          OR EXISTS (
                              SELECT 1 FROM contact_tags ct 
                              JOIN tags t ON ct.tag_id = t.id 
-                             WHERE ct.contact_id = contacts.id AND t.name LIKE :search
+                             WHERE ct.contact_id = contacts.id AND t.name LIKE :search_tag
                          )
                          OR EXISTS (
                              SELECT 1 FROM notes n 
-                             WHERE n.contact_id = contacts.id AND n.note LIKE :search
+                             WHERE n.contact_id = contacts.id AND n.note LIKE :search_note
                          ))";
-        $params['search'] = '%' . $search . '%';
+                         
+        $term = '%' . $search . '%';
+        $params['search_name'] = $term;
+        $params['search_comp'] = $term;
+        $params['search_job'] = $term;
+        $params['search_phone'] = $term;
+        $params['search_email'] = $term;
+        $params['search_web'] = $term;
+        $params['search_li'] = $term;
+        $params['search_addr'] = $term;
+        $params['search_city'] = $term;
+        $params['search_state'] = $term;
+        $params['search_country'] = $term;
+        $params['search_zip'] = $term;
+        $params['search_tag'] = $term;
+        $params['search_note'] = $term;
     }
     
     if ($statusFilter !== '') {
@@ -132,22 +147,9 @@ try {
             
     $stmt = $pdo->prepare($sql);
     
-    // Bind all parameter values securely
-    $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
-    if ($search !== '') {
-        $stmt->bindValue(':search', '%' . $search . '%', PDO::PARAM_STR);
-    }
-    if ($statusFilter !== '') {
-        $stmt->bindValue(':status', $statusFilter, PDO::PARAM_STR);
-    }
-    if ($tagFilter !== '') {
-        $stmt->bindValue(':tag_name', $tagFilter, PDO::PARAM_STR);
-    }
-    if ($industryFilter !== '') {
-        $stmt->bindValue(':industry', $industryFilter, PDO::PARAM_STR);
-    }
-    if ($sourceFilter !== '') {
-        $stmt->bindValue(':lead_source', $sourceFilter, PDO::PARAM_STR);
+    // Bind all parameter values securely from $params array
+    foreach ($params as $key => $val) {
+        $stmt->bindValue(':' . $key, $val, is_int($val) ? PDO::PARAM_INT : PDO::PARAM_STR);
     }
     $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
     $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
