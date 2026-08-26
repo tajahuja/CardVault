@@ -298,5 +298,5 @@ try {
         $pdo->rollBack();
     }
     error_log("Save Contact DB Error: " . $e->getMessage());
-    json_response(false, 'An error occurred while saving the contact: ' . $e->getMessage(), [], 500);
+    json_response(false, 'An error occurred while saving the contact. Please try again.', [], 500);
 }
