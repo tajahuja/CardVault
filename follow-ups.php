@@ -534,12 +534,14 @@ require_once __DIR__ . '/includes/header.php';
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                window.location.reload();
+                // Show a brief success toast before reloading
+                showToast(data.message || 'Operation succeeded.', 'success');
+                setTimeout(() => window.location.reload(), 1000);
             } else {
-                alert(data.message || 'Operation failed.');
+                showToast(data.message || 'Operation failed.', 'error');
             }
         })
-        .catch(err => alert('Error: ' + err.message));
+        .catch(err => showToast('Error: ' + err.message, 'error'));
     }
 
     // Quick action log hook
@@ -561,10 +563,10 @@ require_once __DIR__ . '/includes/header.php';
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                console.log(`${type} action logged to timeline.`);
+                showToast(`${type} interaction logged to timeline.`, 'success');
             }
         })
-        .catch(err => console.error(err));
+        .catch(err => showToast('Failed to log interaction: ' + err.message, 'error'));
     }
 
     // Form Submits

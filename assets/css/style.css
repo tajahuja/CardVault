@@ -685,3 +685,99 @@ tr:last-child td {
         flex: 1;
     }
 }
+
+/* Toast Notification System Styles */
+#toast-container {
+    position: fixed;
+    top: 1.25rem;
+    right: 1.25rem;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-width: 380px;
+    width: calc(100% - 2.5rem);
+    pointer-events: none;
+}
+
+.toast-message {
+    background: var(--surface-color);
+    border-left: 4px solid var(--primary-color);
+    box-shadow: var(--shadow-lg);
+    border-radius: var(--radius-sm);
+    padding: 1rem 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    pointer-events: auto;
+    animation: toast-slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+}
+
+@keyframes toast-slide-in {
+    from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.toast-message.success {
+    border-left-color: var(--success-color);
+    background: var(--success-light);
+    color: #065f46;
+}
+
+.toast-message.error {
+    border-left-color: var(--danger-color);
+    background: var(--danger-light);
+    color: #991b1b;
+}
+
+.toast-message.warning {
+    border-left-color: var(--warning-color);
+    background: var(--warning-light);
+    color: #92400e;
+}
+
+.toast-message.info {
+    border-left-color: var(--info-color);
+    background: var(--info-light);
+    color: #1e40af;
+}
+
+.toast-content {
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.toast-close {
+    background: transparent;
+    border: none;
+    font-size: 1.1rem;
+    cursor: pointer;
+    color: currentColor;
+    opacity: 0.6;
+    transition: opacity 0.15s;
+    line-height: 1;
+    padding: 0;
+    margin: 0;
+}
+
+.toast-close:hover {
+    opacity: 1;
+}
+
+@media (max-width: 480px) {
+    #toast-container {
+        top: 0.75rem;
+        right: 0.75rem;
+        left: 0.75rem;
+        width: auto;
+        max-width: none;
+    }
+}

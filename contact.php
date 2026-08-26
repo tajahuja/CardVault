@@ -610,12 +610,13 @@ $websiteUrl = clean_url($contact['website']);
         .then(data => {
             if (data.success) {
                 form.querySelector('textarea').value = '';
-                window.location.reload();
+                showToast('Note added successfully.', 'success');
+                setTimeout(() => window.location.reload(), 1000);
             } else {
-                alert(data.message || 'Failed to add note.');
+                showToast(data.message || 'Failed to add note.', 'error');
             }
         })
-        .catch(err => alert('Error: ' + err.message));
+        .catch(err => showToast('Error: ' + err.message, 'error'));
     });
 
     window.deleteNote = function(noteId) {
@@ -640,13 +641,13 @@ $websiteUrl = clean_url($contact['website']);
             if (data.success) {
                 const noteCard = document.getElementById(`note-card-${noteId}`);
                 if (noteCard) noteCard.remove();
-                // Reload notes list to recover empty state if all deleted
+                showToast('Note deleted successfully.', 'success');
                 loadNotes();
             } else {
-                alert(data.message || 'Failed to delete note.');
+                showToast(data.message || 'Failed to delete note.', 'error');
             }
         })
-        .catch(err => alert('Error: ' + err.message));
+        .catch(err => showToast('Error: ' + err.message, 'error'));
     };
 
     // 2. TAGS LOAD & SUBMIT SYSTEM
@@ -690,12 +691,13 @@ $websiteUrl = clean_url($contact['website']);
         .then(data => {
             if (data.success) {
                 form.querySelector('input[name="tag_name"]').value = '';
+                showToast('Tag added successfully.', 'success');
                 loadTags();
             } else {
-                alert(data.message || 'Failed to add tag.');
+                showToast(data.message || 'Failed to add tag.', 'error');
             }
         })
-        .catch(err => alert('Error: ' + err.message));
+        .catch(err => showToast('Error: ' + err.message, 'error'));
     });
 
     window.detachTag = function(tagId) {
@@ -717,12 +719,13 @@ $websiteUrl = clean_url($contact['website']);
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                showToast('Tag removed.', 'info');
                 loadTags();
             } else {
-                alert(data.message || 'Failed to remove tag.');
+                showToast(data.message || 'Failed to remove tag.', 'error');
             }
         })
-        .catch(err => alert('Error: ' + err.message));
+        .catch(err => showToast('Error: ' + err.message, 'error'));
     };
 
     // 3. CONTACT CRITICAL ACTIONS
@@ -742,40 +745,14 @@ $websiteUrl = clean_url($contact['website']);
         .then(response => response.json())
         .then(data => {
             if (data.success && data.redirect) {
-                window.location.href = data.redirect;
+                showToast('Contact deleted successfully.', 'success');
+                setTimeout(() => window.location.href = data.redirect, 1000);
             } else {
-                alert(data.message || 'An error occurred while deleting the contact.');
+                showToast(data.message || 'An error occurred while deleting the contact.', 'error');
             }
         })
         .catch(error => {
-            alert('Failed to delete contact: ' + error.message);
-        });
-    });
-
-    document.getElementById('followup-form').addEventListener('submit', function(e) {
-        e.preventDefault();
-        const form = this;
-        const formData = new FormData(form);
-        
-        fetch(form.action, {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'Accept': 'application/json',
-                'X-CSRF-Token': formData.get('csrf_token')
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('Follow-up schedule updated successfully.');
-                window.location.reload();
-            } else {
-                alert(data.message || 'An error occurred while updating follow-up.');
-            }
-        })
-        .catch(error => {
-            alert('Failed to update follow-up: ' + error.message);
+            showToast('Failed to delete contact: ' + error.message, 'error');
         });
     });
 
@@ -969,12 +946,13 @@ $websiteUrl = clean_url($contact['website']);
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                window.location.reload();
+                showToast(data.message || 'Operation succeeded.', 'success');
+                setTimeout(() => window.location.reload(), 1000);
             } else {
-                alert(data.message || 'Operation failed.');
+                showToast(data.message || 'Operation failed.', 'error');
             }
         })
-        .catch(err => alert('Error: ' + err.message));
+        .catch(err => showToast('Error: ' + err.message, 'error'));
     }
 
     // Bind profile forms
