@@ -41,12 +41,20 @@ $state = isset($_POST['state']) ? trim($_POST['state']) : '';
 $country = isset($_POST['country']) ? trim($_POST['country']) : '';
 $postalCode = isset($_POST['postal_code']) ? trim($_POST['postal_code']) : '';
 $placeMet = isset($_POST['place_met']) ? trim($_POST['place_met']) : '';
+$industry = isset($_POST['industry']) ? trim($_POST['industry']) : '';
+$leadSource = isset($_POST['lead_source']) ? trim($_POST['lead_source']) : '';
 
 $dateMet = !empty($_POST['date_met']) ? $_POST['date_met'] : null;
 $followUpDate = !empty($_POST['follow_up_date']) ? $_POST['follow_up_date'] : null;
 
 $status = isset($_POST['status']) ? $_POST['status'] : 'New';
 $source = isset($_POST['source']) ? $_POST['source'] : 'Manual Entry';
+
+// Auto-fill leadSource from source if empty
+if (empty($leadSource)) {
+    $leadSource = $source;
+}
+
 $ocrRawText = isset($_POST['ocr_raw_text']) ? $_POST['ocr_raw_text'] : null;
 $originalCardImage = isset($_POST['original_card_image']) ? $_POST['original_card_image'] : null;
 
@@ -137,12 +145,12 @@ try {
     $sql = "INSERT INTO contacts (
                 user_id, first_name, last_name, full_name, job_title, company, 
                 phone, alternate_phone, email, alternate_email, website, linkedin_url, 
-                address, city, state, country, postal_code, date_met, place_met, 
+                address, city, state, country, postal_code, industry, lead_source, date_met, place_met, 
                 follow_up_date, status, original_card_image, source, ocr_raw_text
             ) VALUES (
                 :user_id, :first_name, :last_name, :full_name, :job_title, :company, 
                 :phone, :alternate_phone, :email, :alternate_email, :website, :linkedin_url, 
-                :address, :city, :state, :country, :postal_code, :date_met, :place_met, 
+                :address, :city, :state, :country, :postal_code, :industry, :lead_source, :date_met, :place_met, 
                 :follow_up_date, :status, :original_card_image, :source, :ocr_raw_text
             )";
             
@@ -165,6 +173,8 @@ try {
         'state' => $state !== '' ? $state : null,
         'country' => $country !== '' ? $country : null,
         'postal_code' => $postalCode !== '' ? $postalCode : null,
+        'industry' => $industry !== '' ? $industry : null,
+        'lead_source' => $leadSource !== '' ? $leadSource : null,
         'date_met' => $dateMet,
         'place_met' => $placeMet !== '' ? $placeMet : null,
         'follow_up_date' => $followUpDate,
@@ -207,6 +217,25 @@ try {
             $stmtAttach = $pdo->prepare("INSERT IGNORE INTO contact_tags (contact_id, tag_id) VALUES (:contact_id, :tag_id)");
             $stmtAttach->execute(['contact_id' => $contactId, 'tag_id' => $tagId]);
         }
+    }
+    
+    // Log creation event in timeline
+    if ($source === 'Business Card') {
+        log_interaction($contactId, 'Scan', 'Business card scanned and parsed.');
+    } else {
+        log_interaction($contactId, 'Meeting', 'Contact manually created.');
+    }
+
+    if (!empty($_POST['notes'])) {
+        log_interaction($contactId, 'Note', 'Initial meeting notes recorded: ' . trim($_POST['notes']));
+    }
+
+    if (!empty($_POST['tags'])) {
+        log_interaction($contactId, 'Note', 'Attached tags: ' . trim($_POST['tags']));
+    }
+
+    if ($followUpDate) {
+        log_interaction($contactId, 'Follow-up', 'Initial follow-up scheduled for ' . format_date_user($followUpDate) . '.');
     }
     
     json_response(true, 'Contact saved successfully.', [

@@ -57,6 +57,21 @@ require_once __DIR__ . '/includes/csrf.php';
                         <input type="text" id="company" name="company" placeholder="Acme Corporation">
                     </div>
                 </div>
+                <div class="form-group" style="margin-top: 1rem;">
+                    <label for="industry">Industry / Category</label>
+                    <select id="industry" name="industry">
+                        <option value="" selected>Select Industry</option>
+                        <option value="Hospitality">Hospitality (Hotel/Resort)</option>
+                        <option value="Travel">Travel & Tourism</option>
+                        <option value="Finance">Finance & Banking</option>
+                        <option value="Real Estate">Real Estate</option>
+                        <option value="Technology">Technology & IT</option>
+                        <option value="Consulting">Consulting</option>
+                        <option value="Education">Education</option>
+                        <option value="Government">Government</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
             </div>
 
             <!-- Section: Contact Information -->
@@ -153,6 +168,18 @@ require_once __DIR__ . '/includes/csrf.php';
                             <option value="Archived">Archived</option>
                         </select>
                     </div>
+                </div>
+                <div class="form-group" style="margin-top: 1rem;">
+                    <label for="lead_source">Lead Source</label>
+                    <select id="lead_source" name="lead_source">
+                        <option value="Manual Entry" selected>Manual Entry</option>
+                        <option value="Business Card">Business Card</option>
+                        <option value="Conference">Conference / Event</option>
+                        <option value="Exhibition">Exhibition / Trade Show</option>
+                        <option value="Referral">Referral</option>
+                        <option value="Cold Contact">Cold Contact</option>
+                        <option value="Other">Other</option>
+                    </select>
                 </div>
             </div>
 

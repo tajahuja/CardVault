@@ -79,6 +79,9 @@ if ($method === 'POST') {
             
             $noteId = $pdo->lastInsertId();
             
+            // Log interaction in timeline
+            log_interaction($contactId, 'Note', 'Added note: ' . (strlen($note) > 100 ? substr($note, 0, 100) . '...' : $note));
+            
             json_response(true, 'Note added successfully.', [
                 'note' => [
                     'id' => $noteId,

@@ -46,6 +46,8 @@ $state = isset($_POST['state']) ? trim($_POST['state']) : '';
 $country = isset($_POST['country']) ? trim($_POST['country']) : '';
 $postalCode = isset($_POST['postal_code']) ? trim($_POST['postal_code']) : '';
 $placeMet = isset($_POST['place_met']) ? trim($_POST['place_met']) : '';
+$industry = isset($_POST['industry']) ? trim($_POST['industry']) : '';
+$leadSource = isset($_POST['lead_source']) ? trim($_POST['lead_source']) : '';
 
 $dateMet = !empty($_POST['date_met']) ? $_POST['date_met'] : null;
 $followUpDate = !empty($_POST['follow_up_date']) ? $_POST['follow_up_date'] : null;
@@ -120,6 +122,15 @@ if (!$ignoreDuplicate) {
 }
 
 try {
+    // Fetch old values to check for changes
+    $stmtOld = $pdo->prepare("SELECT status, follow_up_date, industry, lead_source FROM contacts WHERE id = :id AND user_id = :user_id LIMIT 1");
+    $stmtOld->execute(['id' => $contactId, 'user_id' => $userId]);
+    $oldContact = $stmtOld->fetch();
+    
+    if (!$oldContact) {
+        json_response(false, 'Contact not found or unauthorized.', [], 404);
+    }
+
     // Assert ownership in query
     $sql = "UPDATE contacts SET 
                 first_name = :first_name, 
@@ -138,6 +149,8 @@ try {
                 state = :state, 
                 country = :country, 
                 postal_code = :postal_code, 
+                industry = :industry,
+                lead_source = :lead_source,
                 date_met = :date_met, 
                 place_met = :place_met, 
                 follow_up_date = :follow_up_date, 
@@ -145,7 +158,7 @@ try {
             WHERE id = :id AND user_id = :user_id";
             
     $stmt = $pdo->prepare($sql);
-    $result = $stmt->execute([
+    $stmt->execute([
         'id' => $contactId,
         'user_id' => $userId,
         'first_name' => $firstName !== '' ? $firstName : null,
@@ -164,22 +177,37 @@ try {
         'state' => $state !== '' ? $state : null,
         'country' => $country !== '' ? $country : null,
         'postal_code' => $postalCode !== '' ? $postalCode : null,
+        'industry' => $industry !== '' ? $industry : null,
+        'lead_source' => $leadSource !== '' ? $leadSource : null,
         'date_met' => $dateMet,
         'place_met' => $placeMet !== '' ? $placeMet : null,
         'follow_up_date' => $followUpDate,
         'status' => $status
     ]);
     
-    // Check if any row was updated (if id + user_id matched)
-    if ($stmt->rowCount() === 0) {
-        // Double-check if resource exists but is owned by someone else
-        $checkStmt = $pdo->prepare("SELECT id FROM contacts WHERE id = :id LIMIT 1");
-        $checkStmt->execute(['id' => $contactId]);
-        if ($checkStmt->fetch()) {
-            json_response(false, 'Unauthorized. You do not own this contact.', [], 403);
+    // Log timeline interactions based on changes
+    $changesMade = [];
+    
+    if ($oldContact['status'] !== $status) {
+        log_interaction($contactId, 'Status Change', "Status updated from '{$oldContact['status']}' to '{$status}'.");
+        $changesMade[] = "status";
+    }
+    
+    // Compare follow-up dates (handle null comparisons safely)
+    $oldFollowUp = $oldContact['follow_up_date'] ? date('Y-m-d', strtotime($oldContact['follow_up_date'])) : null;
+    $newFollowUp = $followUpDate ? date('Y-m-d', strtotime($followUpDate)) : null;
+    if ($oldFollowUp !== $newFollowUp) {
+        if ($newFollowUp === null) {
+            log_interaction($contactId, 'Follow-up', 'Follow-up date cleared.');
         } else {
-            json_response(false, 'Contact not found.', [], 404);
+            log_interaction($contactId, 'Follow-up', "Follow-up rescheduled to " . format_date_user($newFollowUp) . ".");
         }
+        $changesMade[] = "follow-up";
+    }
+    
+    // Log a general profile update if other edits occurred
+    if (empty($changesMade)) {
+        log_interaction($contactId, 'Note', 'Contact profile updated.');
     }
     
     json_response(true, 'Contact updated successfully.', [

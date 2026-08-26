@@ -145,7 +145,7 @@ require_once __DIR__ . '/includes/csrf.php';
                         <!-- Professional -->
                         <div style="margin-bottom: 1.5rem;">
                             <h4 class="form-section-title">Professional</h4>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.5rem;">
                                 <div class="form-group">
                                     <label for="company">Organization</label>
                                     <input type="text" id="company" name="company">
@@ -154,6 +154,21 @@ require_once __DIR__ . '/includes/csrf.php';
                                     <label for="job_title">Designation</label>
                                     <input type="text" id="job_title" name="job_title">
                                 </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="industry">Industry / Category</label>
+                                <select id="industry" name="industry">
+                                    <option value="" selected>Select Industry</option>
+                                    <option value="Hospitality">Hospitality (Hotel/Resort)</option>
+                                    <option value="Travel">Travel & Tourism</option>
+                                    <option value="Finance">Finance & Banking</option>
+                                    <option value="Real Estate">Real Estate</option>
+                                    <option value="Technology">Technology & IT</option>
+                                    <option value="Consulting">Consulting</option>
+                                    <option value="Education">Education</option>
+                                    <option value="Government">Government</option>
+                                    <option value="Other">Other</option>
+                                </select>
                             </div>
                         </div>
 
@@ -229,7 +244,7 @@ require_once __DIR__ . '/includes/csrf.php';
                         <!-- Relationship Context -->
                         <div style="margin-bottom: 1.5rem;">
                             <h4 class="form-section-title">Relationship</h4>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.5rem;">
                                 <div class="form-group">
                                     <label for="date_met">Date Met</label>
                                     <input type="date" id="date_met" name="date_met" value="<?php echo date('Y-m-d'); ?>">
@@ -239,7 +254,7 @@ require_once __DIR__ . '/includes/csrf.php';
                                     <input type="text" id="place_met" name="place_met" placeholder="Mumbai Travel Expo">
                                 </div>
                             </div>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.5rem;">
                                 <div class="form-group">
                                     <label for="follow_up_date">Follow-up Date</label>
                                     <input type="date" id="follow_up_date" name="follow_up_date">
@@ -255,6 +270,17 @@ require_once __DIR__ . '/includes/csrf.php';
                                         <option value="Archived">Archived</option>
                                     </select>
                                 </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="lead_source">Lead Source</label>
+                                <select id="lead_source" name="lead_source">
+                                    <option value="Business Card" selected>Business Card</option>
+                                    <option value="Conference">Conference / Event</option>
+                                    <option value="Exhibition">Exhibition / Trade Show</option>
+                                    <option value="Referral">Referral</option>
+                                    <option value="Cold Contact">Cold Contact</option>
+                                    <option value="Other">Other</option>
+                                </select>
                             </div>
                         </div>
 

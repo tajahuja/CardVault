@@ -85,3 +85,40 @@ function get_whatsapp_url($phone) {
     
     return '';
 }
+
+/**
+ * Logs a contact interaction in the timeline
+ */
+function log_interaction($contactId, $type, $description) {
+    global $pdo;
+    
+    // If $pdo is not globally available, build it
+    if (!isset($pdo)) {
+        $pdo = require_once __DIR__ . '/db.php';
+    }
+    
+    // Check if user is logged in
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    
+    $userId = $_SESSION['user_id'] ?? null;
+    if (!$userId) return false;
+    
+    try {
+        $stmt = $pdo->prepare("
+            INSERT INTO interactions (contact_id, user_id, type, description) 
+            VALUES (:contact_id, :user_id, :type, :description)
+        ");
+        return $stmt->execute([
+            'contact_id'  => $contactId,
+            'user_id'     => $userId,
+            'type'        => $type,
+            'description' => $description
+        ]);
+    } catch (\PDOException $e) {
+        error_log("Failed to log interaction: " . $e->getMessage());
+        return false;
+    }
+}
+

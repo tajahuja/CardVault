@@ -40,6 +40,16 @@ try {
     
     $displayName = !empty($contact['full_name']) ? $contact['full_name'] : ($contact['first_name'] . ' ' . $contact['last_name']);
     $statusClass = strtolower(str_replace(' ', '', $contact['status']));
+    
+    // Fetch chronological interactions timeline
+    $stmtInt = $pdo->prepare("
+        SELECT type, description, created_at 
+        FROM interactions 
+        WHERE contact_id = :contact_id AND user_id = :user_id 
+        ORDER BY created_at DESC
+    ");
+    $stmtInt->execute(['contact_id' => $contactId, 'user_id' => $userId]);
+    $interactions = $stmtInt->fetchAll();
 
 } catch (\PDOException $e) {
     error_log("Contact detail load DB error: " . $e->getMessage());
@@ -247,15 +257,19 @@ $websiteUrl = clean_url($contact['website']);
                 <div class="card-body" style="display: flex; flex-direction: column; gap: 0.75rem;">
                     <div>
                         <div style="font-size: 0.8rem; color: var(--text-muted);">Date Met</div>
-                        <div style="font-weight: 500;"><?php echo $contact['date_met'] ? format_date_user($contact['date_met']) : 'Not scheduled'; ?></div>
+                        <div style="font-weight: 500;"><?php echo $contact['date_met'] ? format_date_user($contact['date_met']) : 'Not specified'; ?></div>
                     </div>
                     <div>
                         <div style="font-size: 0.8rem; color: var(--text-muted);">Place Met</div>
                         <div style="font-weight: 500;"><?php echo e($contact['place_met'] ?: 'Not recorded'); ?></div>
                     </div>
                     <div>
-                        <div style="font-size: 0.8rem; color: var(--text-muted);">CRM Entry Source</div>
-                        <div style="font-weight: 500;"><?php echo e($contact['source'] ?: 'Manual Entry'); ?></div>
+                        <div style="font-size: 0.8rem; color: var(--text-muted);">Industry / Category</div>
+                        <div style="font-weight: 500;"><?php echo e($contact['industry'] ?: 'Not specified'); ?></div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.8rem; color: var(--text-muted);">Lead Source</div>
+                        <div style="font-weight: 500;"><?php echo e($contact['lead_source'] ?: ($contact['source'] ?: 'Manual Entry')); ?></div>
                     </div>
                 </div>
             </div>
@@ -285,6 +299,75 @@ $websiteUrl = clean_url($contact['website']);
                         No notes yet. Add one above.
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- Relationship Timeline -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header">
+                <h3 class="card-title">⏳ Relationship Timeline</h3>
+            </div>
+            <div class="card-body" style="padding: 1.5rem 1.25rem;">
+                <?php if (empty($interactions)): ?>
+                    <div style="color: var(--text-muted); font-size: 0.9rem; text-align: center; padding: 1rem;">
+                        No recorded interactions yet. Initial scan or manual setup will populate this list.
+                    </div>
+                <?php else: ?>
+                    <div class="timeline-container" style="position: relative; border-left: 2px solid var(--border-color); padding-left: 1.5rem; margin-left: 0.75rem; display: flex; flex-direction: column; gap: 1.5rem;">
+                        <?php foreach ($interactions as $int): 
+                            $icon = '📝';
+                            $badgeClass = 'badge-secondary';
+                            switch ($int['type']) {
+                                case 'Scan':
+                                    $icon = '📸';
+                                    $badgeClass = 'badge-success';
+                                    break;
+                                case 'Note':
+                                    $icon = '📝';
+                                    $badgeClass = 'badge-info';
+                                    break;
+                                case 'Call':
+                                    $icon = '📞';
+                                    $badgeClass = 'badge-primary';
+                                    break;
+                                case 'WhatsApp':
+                                    $icon = '💬';
+                                    $badgeClass = 'badge-success';
+                                    break;
+                                case 'Email':
+                                    $icon = '✉️';
+                                    $badgeClass = 'badge-info';
+                                    break;
+                                case 'Meeting':
+                                    $icon = '🤝';
+                                    $badgeClass = 'badge-primary';
+                                    break;
+                                case 'Follow-up':
+                                    $icon = '⏰';
+                                    $badgeClass = 'badge-warning';
+                                    break;
+                                case 'Status Change':
+                                    $icon = '🔄';
+                                    $badgeClass = 'badge-secondary';
+                                    break;
+                            }
+                        ?>
+                            <div class="timeline-item" style="position: relative;">
+                                <!-- Icon dot -->
+                                <div class="timeline-icon" style="position: absolute; left: -2.25rem; top: 0.15rem; background: var(--surface-color); border: 2px solid var(--border-color); border-radius: 50%; width: 1.5rem; height: 1.5rem; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; box-shadow: var(--shadow-sm); z-index: 2;">
+                                    <?php echo $icon; ?>
+                                </div>
+                                <div class="timeline-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                                    <span class="badge <?php echo $badgeClass; ?>" style="font-size: 0.7rem; font-weight: bold; text-transform: uppercase;"><?php echo e($int['type']); ?></span>
+                                    <span style="font-size: 0.8rem; color: var(--text-muted);"><?php echo date('d M Y, h:i A', strtotime($int['created_at'])); ?></span>
+                                </div>
+                                <div class="timeline-desc" style="font-size: 0.9rem; color: var(--text-color); line-height: 1.5; font-weight: 500;">
+                                    <?php echo e($int['description']); ?>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -495,7 +578,7 @@ $websiteUrl = clean_url($contact['website']);
         .then(data => {
             if (data.success) {
                 form.querySelector('textarea').value = '';
-                loadNotes();
+                window.location.reload();
             } else {
                 alert(data.message || 'Failed to add note.');
             }
@@ -663,6 +746,53 @@ $websiteUrl = clean_url($contact['website']);
             alert('Failed to update follow-up: ' + error.message);
         });
     });
+
+    // 4. AUTOMATIC ACTION LOGGING SYSTEM
+    const callBtn = document.querySelector('a[href^="tel:"]');
+    const emailBtn = document.querySelector('a[href^="mailto:"]');
+    const whatsappBtn = document.querySelector('a[href*="wa.me"]');
+    
+    function logAction(type, description) {
+        const formData = new FormData();
+        formData.append('contact_id', contactId);
+        formData.append('type', type);
+        formData.append('description', description);
+        formData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
+        
+        fetch('api/log_interaction.php', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRF-Token': document.querySelector('input[name="csrf_token"]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log(`${type} action logged to timeline.`);
+            } else {
+                console.error('Failed to log action: ' + data.message);
+            }
+        })
+        .catch(err => console.error('Error logging action:', err));
+    }
+
+    if (callBtn) {
+        callBtn.addEventListener('click', () => {
+            logAction('Call', 'Initiated phone call to mobile.');
+        });
+    }
+    if (emailBtn) {
+        emailBtn.addEventListener('click', () => {
+            logAction('Email', 'Initiated outbound email.');
+        });
+    }
+    if (whatsappBtn) {
+        whatsappBtn.addEventListener('click', () => {
+            logAction('WhatsApp', 'Opened WhatsApp chat window.');
+        });
+    }
 
     // Run on startup
     loadNotes();

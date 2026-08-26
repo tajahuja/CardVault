@@ -88,6 +88,22 @@ try {
                         <input type="text" id="company" name="company" value="<?php echo e($contact['company']); ?>">
                     </div>
                 </div>
+                <div class="form-group" style="margin-top: 1rem;">
+                    <label for="industry">Industry / Category</label>
+                    <select id="industry" name="industry">
+                        <?php $indVal = $contact['industry'] ?? ''; ?>
+                        <option value="" <?php echo $indVal === '' ? 'selected' : ''; ?>>Select Industry</option>
+                        <option value="Hospitality" <?php echo $indVal === 'Hospitality' ? 'selected' : ''; ?>>Hospitality (Hotel/Resort)</option>
+                        <option value="Travel" <?php echo $indVal === 'Travel' ? 'selected' : ''; ?>>Travel & Tourism</option>
+                        <option value="Finance" <?php echo $indVal === 'Finance' ? 'selected' : ''; ?>>Finance & Banking</option>
+                        <option value="Real Estate" <?php echo $indVal === 'Real Estate' ? 'selected' : ''; ?>>Real Estate</option>
+                        <option value="Technology" <?php echo $indVal === 'Technology' ? 'selected' : ''; ?>>Technology & IT</option>
+                        <option value="Consulting" <?php echo $indVal === 'Consulting' ? 'selected' : ''; ?>>Consulting</option>
+                        <option value="Education" <?php echo $indVal === 'Education' ? 'selected' : ''; ?>>Education</option>
+                        <option value="Government" <?php echo $indVal === 'Government' ? 'selected' : ''; ?>>Government</option>
+                        <option value="Other" <?php echo $indVal === 'Other' ? 'selected' : ''; ?>>Other</option>
+                    </select>
+                </div>
             </div>
 
             <!-- Section: Contact Information -->
@@ -185,6 +201,19 @@ try {
                             ?>
                         </select>
                     </div>
+                </div>
+                <div class="form-group" style="margin-top: 1rem;">
+                    <label for="lead_source">Lead Source</label>
+                    <select id="lead_source" name="lead_source">
+                        <?php $srcVal = $contact['lead_source'] ?? ''; ?>
+                        <option value="Manual Entry" <?php echo $srcVal === 'Manual Entry' ? 'selected' : ''; ?>>Manual Entry</option>
+                        <option value="Business Card" <?php echo $srcVal === 'Business Card' ? 'selected' : ''; ?>>Business Card</option>
+                        <option value="Conference" <?php echo $srcVal === 'Conference' ? 'selected' : ''; ?>>Conference / Event</option>
+                        <option value="Exhibition" <?php echo $srcVal === 'Exhibition' ? 'selected' : ''; ?>>Exhibition / Trade Show</option>
+                        <option value="Referral" <?php echo $srcVal === 'Referral' ? 'selected' : ''; ?>>Referral</option>
+                        <option value="Cold Contact" <?php echo $srcVal === 'Cold Contact' ? 'selected' : ''; ?>>Cold Contact</option>
+                        <option value="Other" <?php echo $srcVal === 'Other' ? 'selected' : ''; ?>>Other</option>
+                    </select>
                 </div>
             </div>
 

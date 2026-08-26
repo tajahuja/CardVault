@@ -13,6 +13,8 @@ $userId = $_SESSION['user_id'];
 $search = isset($_GET['search']) ? trim($_GET['search']) : '';
 $statusFilter = isset($_GET['status']) ? trim($_GET['status']) : '';
 $tagFilter = isset($_GET['tag']) ? trim($_GET['tag']) : '';
+$industryFilter = isset($_GET['industry']) ? trim($_GET['industry']) : '';
+$sourceFilter = isset($_GET['lead_source']) ? trim($_GET['lead_source']) : '';
 $sortBy = isset($_GET['sort']) ? trim($_GET['sort']) : 'name_asc';
 $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
 
@@ -20,12 +22,24 @@ $limit = 10;
 $offset = ($page - 1) * $limit;
 
 $allTags = [];
+$allIndustries = [];
+$allSources = [];
 
 try {
     // Fetch all user's tags for the filter dropdown
     $tagsStmt = $pdo->prepare("SELECT DISTINCT name FROM tags WHERE user_id = :user_id ORDER BY name ASC");
     $tagsStmt->execute(['user_id' => $userId]);
     $allTags = $tagsStmt->fetchAll(PDO::FETCH_COLUMN);
+
+    // Fetch distinct industries for the filter dropdown
+    $indStmt = $pdo->prepare("SELECT DISTINCT industry FROM contacts WHERE user_id = :user_id AND industry IS NOT NULL AND industry != '' ORDER BY industry ASC");
+    $indStmt->execute(['user_id' => $userId]);
+    $allIndustries = $indStmt->fetchAll(PDO::FETCH_COLUMN);
+
+    // Fetch distinct lead sources for the filter dropdown
+    $srcStmt = $pdo->prepare("SELECT DISTINCT lead_source FROM contacts WHERE user_id = :user_id AND lead_source IS NOT NULL AND lead_source != '' ORDER BY lead_source ASC");
+    $srcStmt->execute(['user_id' => $userId]);
+    $allSources = $srcStmt->fetchAll(PDO::FETCH_COLUMN);
 
     // 1. Build Query Constraints
     $where = "WHERE user_id = :user_id";
@@ -36,7 +50,23 @@ try {
                          OR company LIKE :search 
                          OR job_title LIKE :search 
                          OR phone LIKE :search 
-                         OR email LIKE :search)";
+                         OR email LIKE :search
+                         OR website LIKE :search
+                         OR linkedin_url LIKE :search
+                         OR address LIKE :search
+                         OR city LIKE :search
+                         OR state LIKE :search
+                         OR country LIKE :search
+                         OR postal_code LIKE :search
+                         OR EXISTS (
+                             SELECT 1 FROM contact_tags ct 
+                             JOIN tags t ON ct.tag_id = t.id 
+                             WHERE ct.contact_id = contacts.id AND t.name LIKE :search
+                         )
+                         OR EXISTS (
+                             SELECT 1 FROM notes n 
+                             WHERE n.contact_id = contacts.id AND n.note LIKE :search
+                         ))";
         $params['search'] = '%' . $search . '%';
     }
     
@@ -52,6 +82,16 @@ try {
             WHERE ct.contact_id = contacts.id AND t.name = :tag_name
         )";
         $params['tag_name'] = $tagFilter;
+    }
+
+    if ($industryFilter !== '') {
+        $where .= " AND industry = :industry";
+        $params['industry'] = $industryFilter;
+    }
+
+    if ($sourceFilter !== '') {
+        $where .= " AND lead_source = :lead_source";
+        $params['lead_source'] = $sourceFilter;
     }
     
     // 2. Define Sorting Order
@@ -84,7 +124,7 @@ try {
     $totalPages = max(1, ceil($totalRows / $limit));
     
     // 4. Fetch Paginated Records
-    $sql = "SELECT id, first_name, last_name, full_name, company, job_title, phone, email, status, date_met 
+    $sql = "SELECT id, first_name, last_name, full_name, company, job_title, phone, email, status, date_met, industry, lead_source 
             FROM contacts 
             $where 
             $orderBy 
@@ -102,6 +142,12 @@ try {
     }
     if ($tagFilter !== '') {
         $stmt->bindValue(':tag_name', $tagFilter, PDO::PARAM_STR);
+    }
+    if ($industryFilter !== '') {
+        $stmt->bindValue(':industry', $industryFilter, PDO::PARAM_STR);
+    }
+    if ($sourceFilter !== '') {
+        $stmt->bindValue(':lead_source', $sourceFilter, PDO::PARAM_STR);
     }
     $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
     $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
@@ -132,10 +178,10 @@ try {
 <!-- Search, Filter & Sort Form -->
 <div class="card" style="margin-bottom: 1.5rem;">
     <div class="card-body" style="padding: 1rem;">
-        <form method="GET" action="contacts.php" style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap: 0.75rem; align-items: end;">
-            <div class="form-group" style="margin-bottom: 0;">
+        <form method="GET" action="contacts.php" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)) auto; gap: 0.75rem; align-items: end;">
+            <div class="form-group" style="margin-bottom: 0; min-width: 220px;">
                 <label for="search" style="font-size: 0.8rem; font-weight: 600;">Search contacts</label>
-                <input type="text" id="search" name="search" placeholder="Search by name, company, phone, email..." value="<?php echo e($search); ?>">
+                <input type="text" id="search" name="search" placeholder="Search by name, company, notes, tags..." value="<?php echo e($search); ?>">
             </div>
             
             <div class="form-group" style="margin-bottom: 0;">
@@ -164,6 +210,32 @@ try {
                     ?>
                 </select>
             </div>
+
+            <div class="form-group" style="margin-bottom: 0;">
+                <label for="industry" style="font-size: 0.8rem; font-weight: 600;">Industry</label>
+                <select id="industry" name="industry">
+                    <option value="">All Industries</option>
+                    <?php
+                    foreach ($allIndustries as $ind) {
+                        $selected = ($industryFilter === $ind) ? 'selected' : '';
+                        echo '<option value="' . e($ind) . '" ' . $selected . '>' . e($ind) . '</option>';
+                    }
+                    ?>
+                </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0;">
+                <label for="lead_source" style="font-size: 0.8rem; font-weight: 600;">Lead Source</label>
+                <select id="lead_source" name="lead_source">
+                    <option value="">All Sources</option>
+                    <?php
+                    foreach ($allSources as $src) {
+                        $selected = ($sourceFilter === $src) ? 'selected' : '';
+                        echo '<option value="' . e($src) . '" ' . $selected . '>' . e($src) . '</option>';
+                    }
+                    ?>
+                </select>
+            </div>
             
             <div class="form-group" style="margin-bottom: 0;">
                 <label for="sort" style="font-size: 0.8rem; font-weight: 600;">Sort By</label>
@@ -177,11 +249,9 @@ try {
                 </select>
             </div>
             
-            <div style="display: flex; gap: 0.5rem;">
-                <button type="submit" class="btn btn-primary" style="padding: 0.625rem 1.25rem;">Filter</button>
-                <?php if ($search !== '' || $statusFilter !== '' || $tagFilter !== '' || $sortBy !== 'name_asc'): ?>
-                    <a href="contacts.php" class="btn btn-secondary" style="padding: 0.625rem 1rem;" title="Reset filters">🔄</a>
-                <?php endif; ?>
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 0.25rem;">
+                <button type="submit" class="btn btn-primary" style="padding: 0.65rem 1.25rem;">Filter</button>
+                <a href="contacts.php" class="btn btn-secondary" style="padding: 0.65rem 1rem; text-decoration: none; text-align: center;">Reset</a>
             </div>
         </form>
     </div>
