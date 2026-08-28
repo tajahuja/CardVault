@@ -73,6 +73,34 @@ function require_login() {
             exit;
         }
     }
+
+    // Verify session user actually exists in the database to prevent foreign key errors (e.g. database reset)
+    global $pdo;
+    if (!isset($pdo)) {
+        $pdo = require dirname(__DIR__) . '/includes/db.php';
+    }
+
+    try {
+        $stmt = $pdo->prepare("SELECT id FROM users WHERE id = :id LIMIT 1");
+        $stmt->execute(['id' => $_SESSION['user_id']]);
+        if (!$stmt->fetch()) {
+            // Log out user as their session is stale/orphaned
+            logout_user();
+            if (is_api_request()) {
+                http_response_code(401);
+                die(json_encode([
+                    'success' => false,
+                    'message' => 'Session invalid. Please log in again.'
+                ]));
+            } else {
+                header('Location: login.php?invalid_session=1');
+                exit;
+            }
+        }
+    } catch (\Exception $e) {
+        // Fallback for database check errors
+        error_log("Session validation DB check failed: " . $e->getMessage());
+    }
 }
 
 /**

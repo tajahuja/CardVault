@@ -141,59 +141,69 @@ if (!$ignoreDuplicate) {
 }
 
 try {
+    $pdo->beginTransaction();
+
     // Insert into database
-    $sql = "INSERT INTO contacts (
-                user_id, first_name, last_name, full_name, job_title, company, 
-                phone, alternate_phone, email, alternate_email, website, linkedin_url, 
-                address, city, state, country, postal_code, industry, lead_source, date_met, place_met, 
-                follow_up_date, status, original_card_image, source, ocr_raw_text
-            ) VALUES (
-                :user_id, :first_name, :last_name, :full_name, :job_title, :company, 
-                :phone, :alternate_phone, :email, :alternate_email, :website, :linkedin_url, 
-                :address, :city, :state, :country, :postal_code, :industry, :lead_source, :date_met, :place_met, 
-                :follow_up_date, :status, :original_card_image, :source, :ocr_raw_text
-            )";
-            
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute([
-        'user_id' => $userId,
-        'first_name' => $firstName !== '' ? $firstName : null,
-        'last_name' => $lastName !== '' ? $lastName : null,
-        'full_name' => $fullName !== '' ? $fullName : null,
-        'job_title' => $jobTitle !== '' ? $jobTitle : null,
-        'company' => $company !== '' ? $company : null,
-        'phone' => $phone !== '' ? $phone : null,
-        'alternate_phone' => $alternatePhone !== '' ? $alternatePhone : null,
-        'email' => $email !== '' ? $email : null,
-        'alternate_email' => $alternateEmail !== '' ? $alternateEmail : null,
-        'website' => $website !== '' ? $website : null,
-        'linkedin_url' => $linkedinUrl !== '' ? $linkedinUrl : null,
-        'address' => $address !== '' ? $address : null,
-        'city' => $city !== '' ? $city : null,
-        'state' => $state !== '' ? $state : null,
-        'country' => $country !== '' ? $country : null,
-        'postal_code' => $postalCode !== '' ? $postalCode : null,
-        'industry' => $industry !== '' ? $industry : null,
-        'lead_source' => $leadSource !== '' ? $leadSource : null,
-        'date_met' => $dateMet,
-        'place_met' => $placeMet !== '' ? $placeMet : null,
-        'follow_up_date' => $followUpDate,
-        'status' => $status,
-        'original_card_image' => $originalCardImage,
-        'source' => $source,
-        'ocr_raw_text' => $ocrRawText
-    ]);
-    
-    $contactId = $pdo->lastInsertId();
+    try {
+        $sql = "INSERT INTO contacts (
+                    user_id, first_name, last_name, full_name, job_title, company, 
+                    phone, alternate_phone, email, alternate_email, website, linkedin_url, 
+                    address, city, state, country, postal_code, industry, lead_source, date_met, place_met, 
+                    follow_up_date, status, original_card_image, source, ocr_raw_text
+                ) VALUES (
+                    :user_id, :first_name, :last_name, :full_name, :job_title, :company, 
+                    :phone, :alternate_phone, :email, :alternate_email, :website, :linkedin_url, 
+                    :address, :city, :state, :country, :postal_code, :industry, :lead_source, :date_met, :place_met, 
+                    :follow_up_date, :status, :original_card_image, :source, :ocr_raw_text
+                )";
+                
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([
+            'user_id' => $userId,
+            'first_name' => $firstName !== '' ? $firstName : null,
+            'last_name' => $lastName !== '' ? $lastName : null,
+            'full_name' => $fullName !== '' ? $fullName : null,
+            'job_title' => $jobTitle !== '' ? $jobTitle : null,
+            'company' => $company !== '' ? $company : null,
+            'phone' => $phone !== '' ? $phone : null,
+            'alternate_phone' => $alternatePhone !== '' ? $alternatePhone : null,
+            'email' => $email !== '' ? $email : null,
+            'alternate_email' => $alternateEmail !== '' ? $alternateEmail : null,
+            'website' => $website !== '' ? $website : null,
+            'linkedin_url' => $linkedinUrl !== '' ? $linkedinUrl : null,
+            'address' => $address !== '' ? $address : null,
+            'city' => $city !== '' ? $city : null,
+            'state' => $state !== '' ? $state : null,
+            'country' => $country !== '' ? $country : null,
+            'postal_code' => $postalCode !== '' ? $postalCode : null,
+            'industry' => $industry !== '' ? $industry : null,
+            'lead_source' => $leadSource !== '' ? $leadSource : null,
+            'date_met' => $dateMet,
+            'place_met' => $placeMet !== '' ? $placeMet : null,
+            'follow_up_date' => $followUpDate,
+            'status' => $status,
+            'original_card_image' => $originalCardImage,
+            'source' => $source,
+            'ocr_raw_text' => $ocrRawText
+        ]);
+        
+        $contactId = $pdo->lastInsertId();
+    } catch (\PDOException $e) {
+        throw new \PDOException("[INSERT contacts FAILED] user_id=$userId. Error: " . $e->getMessage(), (int)$e->getCode(), $e);
+    }
     
     // If optional notes are provided, save them
     if (!empty($_POST['notes'])) {
-        $stmtNote = $pdo->prepare("INSERT INTO notes (contact_id, user_id, note) VALUES (:contact_id, :user_id, :note)");
-        $stmtNote->execute([
-            'contact_id' => $contactId,
-            'user_id' => $userId,
-            'note' => trim($_POST['notes'])
-        ]);
+        try {
+            $stmtNote = $pdo->prepare("INSERT INTO notes (contact_id, user_id, note) VALUES (:contact_id, :user_id, :note)");
+            $stmtNote->execute([
+                'contact_id' => $contactId,
+                'user_id' => $userId,
+                'note' => trim($_POST['notes'])
+            ]);
+        } catch (\PDOException $e) {
+            throw new \PDOException("[INSERT notes FAILED] contact_id=$contactId, user_id=$userId. Error: " . $e->getMessage(), (int)$e->getCode(), $e);
+        }
     }
     
     // If optional tags are provided, save them (comma-separated list of tags)
@@ -202,57 +212,91 @@ try {
         foreach ($tagNames as $tagName) {
             if ($tagName === '') continue;
             
-            // Get or create tag
-            $stmtTag = $pdo->prepare("SELECT id FROM tags WHERE user_id = :user_id AND name = :name");
-            $stmtTag->execute(['user_id' => $userId, 'name' => $tagName]);
-            $tagId = $stmtTag->fetchColumn();
-            
-            if (!$tagId) {
-                $stmtNewTag = $pdo->prepare("INSERT INTO tags (user_id, name) VALUES (:user_id, :name)");
-                $stmtNewTag->execute(['user_id' => $userId, 'name' => $tagName]);
-                $tagId = $pdo->lastInsertId();
+            try {
+                // Get or create tag
+                $stmtTag = $pdo->prepare("SELECT id FROM tags WHERE user_id = :user_id AND name = :name");
+                $stmtTag->execute(['user_id' => $userId, 'name' => $tagName]);
+                $tagId = $stmtTag->fetchColumn();
+                
+                if (!$tagId) {
+                    $stmtNewTag = $pdo->prepare("INSERT INTO tags (user_id, name) VALUES (:user_id, :name)");
+                    $stmtNewTag->execute(['user_id' => $userId, 'name' => $tagName]);
+                    $tagId = $pdo->lastInsertId();
+                }
+            } catch (\PDOException $e) {
+                throw new \PDOException("[INSERT/SELECT tags FAILED] user_id=$userId, name=$tagName. Error: " . $e->getMessage(), (int)$e->getCode(), $e);
             }
             
-            // Map tag to contact
-            $stmtAttach = $pdo->prepare("INSERT IGNORE INTO contact_tags (contact_id, tag_id) VALUES (:contact_id, :tag_id)");
-            $stmtAttach->execute(['contact_id' => $contactId, 'tag_id' => $tagId]);
+            try {
+                // Map tag to contact
+                $stmtAttach = $pdo->prepare("INSERT IGNORE INTO contact_tags (contact_id, tag_id) VALUES (:contact_id, :tag_id)");
+                $stmtAttach->execute(['contact_id' => $contactId, 'tag_id' => $tagId]);
+            } catch (\PDOException $e) {
+                throw new \PDOException("[INSERT contact_tags FAILED] contact_id=$contactId, tag_id=$tagId. Error: " . $e->getMessage(), (int)$e->getCode(), $e);
+            }
         }
     }
     
     // Log creation event in timeline
-    if ($source === 'Business Card') {
-        log_interaction($contactId, 'Scan', 'Business card scanned and parsed.');
-    } else {
-        log_interaction($contactId, 'Meeting', 'Contact manually created.');
+    try {
+        if ($source === 'Business Card') {
+            log_interaction($contactId, 'Scan', 'Business card scanned and parsed.');
+        } else {
+            log_interaction($contactId, 'Meeting', 'Contact manually created.');
+        }
+    } catch (\PDOException $e) {
+        throw new \PDOException("[LOG scan/creation interaction FAILED] contact_id=$contactId, user_id=$userId. Error: " . $e->getMessage(), (int)$e->getCode(), $e);
     }
 
     if (!empty($_POST['notes'])) {
-        log_interaction($contactId, 'Note', 'Initial meeting notes recorded: ' . trim($_POST['notes']));
+        try {
+            log_interaction($contactId, 'Note', 'Initial meeting notes recorded: ' . trim($_POST['notes']));
+        } catch (\PDOException $e) {
+            throw new \PDOException("[LOG note interaction FAILED] contact_id=$contactId, user_id=$userId. Error: " . $e->getMessage(), (int)$e->getCode(), $e);
+        }
     }
 
     if (!empty($_POST['tags'])) {
-        log_interaction($contactId, 'Note', 'Attached tags: ' . trim($_POST['tags']));
+        try {
+            log_interaction($contactId, 'Note', 'Attached tags: ' . trim($_POST['tags']));
+        } catch (\PDOException $e) {
+            throw new \PDOException("[LOG tag interaction FAILED] contact_id=$contactId, user_id=$userId. Error: " . $e->getMessage(), (int)$e->getCode(), $e);
+        }
     }
 
     if ($followUpDate) {
-        $stmtFu = $pdo->prepare("
-            INSERT INTO follow_ups (contact_id, user_id, follow_up_date, priority, status, notes) 
-            VALUES (:contact_id, :user_id, :follow_up_date, 'Medium', 'Pending', 'Initial follow-up scheduled after contact registration.')
-        ");
-        $stmtFu->execute([
-            'contact_id' => $contactId,
-            'user_id' => $userId,
-            'follow_up_date' => $followUpDate
-        ]);
-        log_interaction($contactId, 'Follow-up', 'Initial follow-up scheduled for ' . format_date_user($followUpDate) . '.');
+        try {
+            $stmtFu = $pdo->prepare("
+                INSERT INTO follow_ups (contact_id, user_id, follow_up_date, priority, status, notes) 
+                VALUES (:contact_id, :user_id, :follow_up_date, 'Medium', 'Pending', 'Initial follow-up scheduled after contact registration.')
+            ");
+            $stmtFu->execute([
+                'contact_id' => $contactId,
+                'user_id' => $userId,
+                'follow_up_date' => $followUpDate
+            ]);
+        } catch (\PDOException $e) {
+            throw new \PDOException("[INSERT follow_ups FAILED] contact_id=$contactId, user_id=$userId, date=$followUpDate. Error: " . $e->getMessage(), (int)$e->getCode(), $e);
+        }
+        
+        try {
+            log_interaction($contactId, 'Follow-up', 'Initial follow-up scheduled for ' . format_date_user($followUpDate) . '.');
+        } catch (\PDOException $e) {
+            throw new \PDOException("[LOG follow-up interaction FAILED] contact_id=$contactId, user_id=$userId. Error: " . $e->getMessage(), (int)$e->getCode(), $e);
+        }
     }
     
+    $pdo->commit();
+
     json_response(true, 'Contact saved successfully.', [
         'contact_id' => $contactId,
         'redirect' => 'contact.php?id=' . $contactId
     ], 201);
     
 } catch (\PDOException $e) {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
     error_log("Save Contact DB Error: " . $e->getMessage());
-    json_response(false, 'An error occurred while saving the contact: ' . $e->getMessage(), [], 500);
+    json_response(false, 'An error occurred while saving the contact. Please try again.', [], 500);
 }

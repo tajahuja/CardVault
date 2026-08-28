@@ -3,6 +3,11 @@
  * CardVault Database Connection Helper
  */
 
+global $pdo;
+if (isset($pdo) && $pdo instanceof PDO) {
+    return $pdo;
+}
+
 // Define configuration path
 $configPath = dirname(__DIR__) . '/config/database.php';
 
