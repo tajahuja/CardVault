@@ -8,7 +8,7 @@ header('Content-Type: application/json; charset=utf-8');
 require_once dirname(__DIR__) . '/includes/auth.php';
 require_once dirname(__DIR__) . '/includes/csrf.php';
 require_once dirname(__DIR__) . '/includes/functions.php';
-$pdo = require_once dirname(__DIR__) . '/includes/db.php';
+$pdo = require dirname(__DIR__) . '/includes/db.php';
 
 // Assert login
 require_login();

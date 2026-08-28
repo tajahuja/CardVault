@@ -6,7 +6,7 @@
 $pageTitle = 'Contact Details';
 require_once __DIR__ . '/includes/header.php';
 require_once __DIR__ . '/includes/csrf.php';
-$pdo = require_once __DIR__ . '/includes/db.php';
+$pdo = require __DIR__ . '/includes/db.php';
 
 $userId = $_SESSION['user_id'];
 $contactId = isset($_GET['id']) ? intval($_GET['id']) : 0;
