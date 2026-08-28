@@ -241,13 +241,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         selectedCardFile = file;
 
+        // Stop live stream if active
+        stopLiveCamera();
+
         // Update Diagnostics UI
         const dbgFileSelected = document.getElementById('dbg-file-selected');
         const dbgFileName = document.getElementById('dbg-file-name');
         const dbgFileType = document.getElementById('dbg-file-type');
         const dbgFileSize = document.getElementById('dbg-file-size');
-        const dbgBtnClicked = document.getElementById('dbg-btn-clicked');
-        const dbgFlowCalled = document.getElementById('dbg-flow-called');
 
         if (dbgFileSelected) {
             dbgFileSelected.textContent = 'YES';
@@ -256,22 +257,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (dbgFileName) dbgFileName.textContent = file.name || 'blob_image.jpg';
         if (dbgFileType) dbgFileType.textContent = file.type || 'image/jpeg';
         if (dbgFileSize) dbgFileSize.textContent = (file.size / 1024).toFixed(1) + ' KB';
-        if (dbgBtnClicked) {
-            dbgBtnClicked.textContent = 'NO';
-            dbgBtnClicked.style.color = 'var(--danger-color)';
-        }
-        if (dbgFlowCalled) {
-            dbgFlowCalled.textContent = 'NO';
-            dbgFlowCalled.style.color = 'var(--danger-color)';
-        }
 
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            previewImg.src = e.target.result;
-            document.getElementById('step-capture').classList.add('hidden');
-            previewArea.classList.remove('hidden');
-        };
-        reader.readAsDataURL(file);
+        // Auto trigger OCR immediately
+        if (typeof window.startOCRFlow === 'function') {
+            window.startOCRFlow(selectedCardFile);
+        } else {
+            console.error("window.startOCRFlow is not defined!");
+            alert("Scan system is not fully loaded. Please refresh the page.");
+        }
     }
 
     // Reset scanner layout

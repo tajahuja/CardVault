@@ -156,6 +156,63 @@ try {
     $stmt->execute();
     $contacts = $stmt->fetchAll();
     
+    // If search is active, fetch other matching CRM entities
+    $matchedCompanies = [];
+    $matchedOpportunities = [];
+    $matchedEvents = [];
+
+    if ($search !== '') {
+        $searchTerm = '%' . $search . '%';
+        
+        // Match Companies
+        $stmtCompSearch = $pdo->prepare("
+            SELECT id, name, industry, website, location 
+            FROM companies 
+            WHERE user_id = :user_id 
+              AND (name LIKE :term1 OR industry LIKE :term2 OR website LIKE :term3 OR location LIKE :term4)
+            LIMIT 5
+        ");
+        $stmtCompSearch->execute([
+            'user_id' => $userId,
+            'term1' => $searchTerm,
+            'term2' => $searchTerm,
+            'term3' => $searchTerm,
+            'term4' => $searchTerm
+        ]);
+        $matchedCompanies = $stmtCompSearch->fetchAll();
+
+        // Match Opportunities
+        $stmtOppSearch = $pdo->prepare("
+            SELECT id, name, value, stage, probability 
+            FROM opportunities 
+            WHERE user_id = :user_id 
+              AND (name LIKE :term1 OR stage LIKE :term2)
+            LIMIT 5
+        ");
+        $stmtOppSearch->execute([
+            'user_id' => $userId,
+            'term1' => $searchTerm,
+            'term2' => $searchTerm
+        ]);
+        $matchedOpportunities = $stmtOppSearch->fetchAll();
+
+        // Match Events
+        $stmtEvSearch = $pdo->prepare("
+            SELECT id, name, type, date, location 
+            FROM events 
+            WHERE user_id = :user_id 
+              AND (name LIKE :term1 OR type LIKE :term2 OR location LIKE :term3)
+            LIMIT 5
+        ");
+        $stmtEvSearch->execute([
+            'user_id' => $userId,
+            'term1' => $searchTerm,
+            'term2' => $searchTerm,
+            'term3' => $searchTerm
+        ]);
+        $matchedEvents = $stmtEvSearch->fetchAll();
+    }
+    
 } catch (\PDOException $e) {
     error_log("Contacts list load DB error: " . $e->getMessage());
     $dbError = true;
@@ -258,6 +315,79 @@ try {
         </form>
     </div>
 </div>
+
+<!-- Grouped Search Results -->
+<?php if ($search !== '' && (!empty($matchedCompanies) || !empty($matchedOpportunities) || !empty($matchedEvents))): ?>
+    <div class="card" style="margin-bottom: 2rem; border-color: var(--primary-color);">
+        <div class="card-header" style="background-color: var(--primary-light);"><h3 class="card-title" style="color: var(--secondary-color);">🔍 Grouped CRM Search Results for "<?php echo htmlspecialchars($search); ?>"</h3></div>
+        <div class="card-body" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; padding: 1.25rem;">
+            
+            <!-- Grouped Companies -->
+            <div>
+                <h4 style="font-size: 0.95rem; margin-bottom: 0.75rem; color: var(--secondary-color); font-weight: 600; border-bottom: 1px solid var(--border-color); padding-bottom: 0.25rem;">🏢 Grouped Companies Found (<?php echo count($matchedCompanies); ?>)</h4>
+                <?php if (empty($matchedCompanies)): ?>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); font-style: italic;">No companies matched.</p>
+                <?php else: ?>
+                    <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.5rem;">
+                        <?php foreach ($matchedCompanies as $mc): ?>
+                            <li style="font-size: 0.85rem;">
+                                <a href="company.php?id=<?php echo $mc['id']; ?>" style="text-decoration: none; font-weight: 600;" class="text-primary">
+                                    🏢 <?php echo htmlspecialchars($mc['name']); ?>
+                                </a>
+                                <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">
+                                    <?php echo htmlspecialchars($mc['industry'] ?? 'N/A'); ?> · <?php echo htmlspecialchars($mc['location'] ?? 'N/A'); ?>
+                                </span>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                <?php endif; ?>
+            </div>
+
+            <!-- Grouped Opportunities -->
+            <div>
+                <h4 style="font-size: 0.95rem; margin-bottom: 0.75rem; color: var(--secondary-color); font-weight: 600; border-bottom: 1px solid var(--border-color); padding-bottom: 0.25rem;">📈 Grouped Opportunities Found (<?php echo count($matchedOpportunities); ?>)</h4>
+                <?php if (empty($matchedOpportunities)): ?>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); font-style: italic;">No opportunities matched.</p>
+                <?php else: ?>
+                    <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.5rem;">
+                        <?php foreach ($matchedOpportunities as $mo): ?>
+                            <li style="font-size: 0.85rem;">
+                                <a href="pipeline.php" style="text-decoration: none; font-weight: 600;" class="text-primary">
+                                    📈 <?php echo htmlspecialchars($mo['name']); ?>
+                                </a>
+                                <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">
+                                    Value: ₹<?php echo number_format($mo['value'], 2); ?> · Stage: <?php echo htmlspecialchars($mo['stage']); ?>
+                                </span>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                <?php endif; ?>
+            </div>
+
+            <!-- Grouped Events -->
+            <div>
+                <h4 style="font-size: 0.95rem; margin-bottom: 0.75rem; color: var(--secondary-color); font-weight: 600; border-bottom: 1px solid var(--border-color); padding-bottom: 0.25rem;">📅 Grouped Events Found (<?php echo count($matchedEvents); ?>)</h4>
+                <?php if (empty($matchedEvents)): ?>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); font-style: italic;">No events matched.</p>
+                <?php else: ?>
+                    <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.5rem;">
+                        <?php foreach ($matchedEvents as $me): ?>
+                            <li style="font-size: 0.85rem;">
+                                <a href="event.php?id=<?php echo $me['id']; ?>" style="text-decoration: none; font-weight: 600;" class="text-primary">
+                                    📅 Thailand <?php echo htmlspecialchars($me['name']); ?>
+                                </a>
+                                <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">
+                                    Type: <?php echo htmlspecialchars($me['type']); ?> · Date: <?php echo date('d M Y', strtotime($me['date'])); ?>
+                                </span>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                <?php endif; ?>
+            </div>
+
+        </div>
+    </div>
+<?php endif; ?>
 
 <!-- Contacts Table List -->
 <div class="card">

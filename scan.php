@@ -6,6 +6,22 @@
 $pageTitle = 'Scan Card';
 require_once __DIR__ . '/includes/header.php';
 require_once __DIR__ . '/includes/csrf.php';
+$pdo = require __DIR__ . '/includes/db.php';
+
+$userId = $_SESSION['user_id'];
+
+// Retrieve event_id context if provided
+$activeEventId = isset($_GET['event_id']) ? intval($_GET['event_id']) : 0;
+
+// Fetch user's events list for selector
+$stmtEvents = $pdo->prepare("SELECT id, name FROM events WHERE user_id = :user_id ORDER BY date DESC");
+$stmtEvents->execute(['user_id' => $userId]);
+$eventsList = $stmtEvents->fetchAll();
+
+// Fetch user's companies list for selector
+$stmtCompanies = $pdo->prepare("SELECT id, name FROM companies WHERE user_id = :user_id ORDER BY name ASC");
+$stmtCompanies->execute(['user_id' => $userId]);
+$companiesList = $stmtCompanies->fetchAll();
 ?>
 
 <div class="page-header">
@@ -76,8 +92,28 @@ require_once __DIR__ . '/includes/csrf.php';
     <div id="step-processing" class="card hidden">
         <div class="card-body" style="text-align: center; padding: 4rem 2rem;">
             <div class="spinner" style="margin: 0 auto 2rem auto; width: 3.5rem; height: 3.5rem; border-width: 4px; border-top-color: var(--primary-color);"></div>
-            <h2 id="ocr-status-title" style="margin-bottom: 0.5rem; color: var(--secondary-color);">Preparing OCR Engine...</h2>
-            <div class="progress-bar-container">
+            <h2 id="ocr-status-title" style="margin-bottom: 1.5rem; color: var(--secondary-color);">Processing business card...</h2>
+            
+            <div class="steps-indicators-container" style="max-width: 320px; margin: 0 auto; text-align: left; margin-bottom: 2rem;">
+                <div class="step-indicator" id="step-ind-1" style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; font-weight: 500; color: var(--text-muted);">
+                    <span class="step-dot" style="width: 1.5rem; height: 1.5rem; border-radius: 50%; border: 2px solid var(--border-color); display: inline-flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; transition: all 0.2s ease;">1</span>
+                    <span>Image captured</span>
+                </div>
+                <div class="step-indicator" id="step-ind-2" style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; font-weight: 500; color: var(--text-muted);">
+                    <span class="step-dot" style="width: 1.5rem; height: 1.5rem; border-radius: 50%; border: 2px solid var(--border-color); display: inline-flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; transition: all 0.2s ease;">2</span>
+                    <span>Reading text (OCR)</span>
+                </div>
+                <div class="step-indicator" id="step-ind-3" style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; font-weight: 500; color: var(--text-muted);">
+                    <span class="step-dot" style="width: 1.5rem; height: 1.5rem; border-radius: 50%; border: 2px solid var(--border-color); display: inline-flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; transition: all 0.2s ease;">3</span>
+                    <span>Detecting contact details</span>
+                </div>
+                <div class="step-indicator" id="step-ind-4" style="display: flex; align-items: center; gap: 0.75rem; font-weight: 500; color: var(--text-muted);">
+                    <span class="step-dot" style="width: 1.5rem; height: 1.5rem; border-radius: 50%; border: 2px solid var(--border-color); display: inline-flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; transition: all 0.2s ease;">4</span>
+                    <span>Preparing contact</span>
+                </div>
+            </div>
+
+            <div class="progress-bar-container" style="max-width: 320px; margin: 0 auto;">
                 <div id="ocr-progress-bar" class="progress-bar-fill" style="width: 0%;"></div>
             </div>
             <p id="ocr-progress-text" style="color: var(--text-muted); font-size: 0.9rem; margin-top: 0.5rem;">0%</p>
@@ -145,9 +181,20 @@ require_once __DIR__ . '/includes/csrf.php';
                         <!-- Professional -->
                         <div style="margin-bottom: 1.5rem;">
                             <h4 class="form-section-title">Professional</h4>
+                            <div class="form-group" style="margin-bottom: 0.75rem;">
+                                <label for="company_id">Link to CRM B2B Company</label>
+                                <select id="company_id" name="company_id">
+                                    <option value="0">-- Create New Company from Scanned Name --</option>
+                                    <?php foreach ($companiesList as $cOpt): ?>
+                                        <option value="<?php echo $cOpt['id']; ?>">
+                                            🏢 <?php echo htmlspecialchars($cOpt['name']); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.5rem;">
                                 <div class="form-group">
-                                    <label for="company">Organization</label>
+                                    <label for="company">Organization (Scanned Name)</label>
                                     <input type="text" id="company" name="company">
                                 </div>
                                 <div class="form-group">
@@ -244,6 +291,17 @@ require_once __DIR__ . '/includes/csrf.php';
                         <!-- Relationship Context -->
                         <div style="margin-bottom: 1.5rem;">
                             <h4 class="form-section-title">Relationship</h4>
+                            <div class="form-group" style="margin-bottom: 0.75rem;">
+                                <label for="event_id">Met at Event</label>
+                                <select id="event_id" name="event_id" onchange="updateEventSource(this)">
+                                    <option value="0">-- Select Event Context (Optional) --</option>
+                                    <?php foreach ($eventsList as $eOpt): ?>
+                                        <option value="<?php echo $eOpt['id']; ?>" <?php echo $activeEventId === $eOpt['id'] ? 'selected' : ''; ?>>
+                                            📅 <?php echo htmlspecialchars($eOpt['name']); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.5rem;">
                                 <div class="form-group">
                                     <label for="date_met">Date Met</label>
@@ -349,9 +407,9 @@ require_once __DIR__ . '/includes/csrf.php';
             <p>What would you like to do?</p>
         </div>
         <div class="modal-footer">
-            <button type="button" class="btn btn-primary" id="dup-update-btn">Update Existing</button>
-            <button type="button" class="btn btn-secondary" id="dup-create-btn">Create New Anyway</button>
-            <button type="button" class="btn btn-danger" id="dup-cancel-btn">Cancel</button>
+            <button type="button" class="btn btn-primary" id="dup-update-btn">OPEN EXISTING</button>
+            <button type="button" class="btn btn-secondary" id="dup-create-btn">SAVE ANYWAY</button>
+            <button type="button" class="btn btn-danger" id="dup-cancel-btn">CANCEL</button>
         </div>
     </div>
 </div>

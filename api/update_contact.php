@@ -122,6 +122,29 @@ if (!$ignoreDuplicate) {
 }
 
 try {
+    // B2B Company resolution
+    $companyId = isset($_POST['company_id']) ? intval($_POST['company_id']) : 0;
+    if ($companyId <= 0 && !empty($company)) {
+        // Look up by name for this user
+        $stmtComp = $pdo->prepare("SELECT id FROM companies WHERE name = :name AND user_id = :user_id");
+        $stmtComp->execute(['name' => $company, 'user_id' => $userId]);
+        $existingCompId = $stmtComp->fetchColumn();
+        
+        if ($existingCompId) {
+            $companyId = $existingCompId;
+        } else {
+            // Create new company
+            $stmtNewComp = $pdo->prepare("INSERT INTO companies (user_id, name, lead_source) VALUES (:user_id, :name, :lead_source)");
+            $stmtNewComp->execute([
+                'user_id' => $userId,
+                'name' => $company,
+                'lead_source' => $leadSource
+            ]);
+            $companyId = $pdo->lastInsertId();
+        }
+    }
+    $finalCompanyId = ($companyId > 0) ? $companyId : null;
+
     // Fetch old values to check for changes
     $stmtOld = $pdo->prepare("SELECT status, follow_up_date, industry, lead_source FROM contacts WHERE id = :id AND user_id = :user_id LIMIT 1");
     $stmtOld->execute(['id' => $contactId, 'user_id' => $userId]);
@@ -131,8 +154,11 @@ try {
         json_response(false, 'Contact not found or unauthorized.', [], 404);
     }
 
+    $pdo->beginTransaction();
+
     // Assert ownership in query
     $sql = "UPDATE contacts SET 
+                company_id = :company_id,
                 first_name = :first_name, 
                 last_name = :last_name, 
                 full_name = :full_name, 
@@ -161,6 +187,7 @@ try {
     $stmt->execute([
         'id' => $contactId,
         'user_id' => $userId,
+        'company_id' => $finalCompanyId,
         'first_name' => $firstName !== '' ? $firstName : null,
         'last_name' => $lastName !== '' ? $lastName : null,
         'full_name' => $fullName !== '' ? $fullName : null,
@@ -227,12 +254,17 @@ try {
         log_interaction($contactId, 'Note', 'Contact profile updated.');
     }
     
+    $pdo->commit();
+
     json_response(true, 'Contact updated successfully.', [
         'contact_id' => $contactId,
         'redirect' => 'contact.php?id=' . $contactId
     ]);
     
 } catch (\PDOException $e) {
+    if (isset($pdo) && $pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
     error_log("Update Contact DB Error: " . $e->getMessage());
     json_response(false, 'An error occurred while updating the contact: ' . $e->getMessage(), [], 500);
 }

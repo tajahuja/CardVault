@@ -143,15 +143,38 @@ if (!$ignoreDuplicate) {
 try {
     $pdo->beginTransaction();
 
+    // B2B Company resolution
+    $companyId = isset($_POST['company_id']) ? intval($_POST['company_id']) : 0;
+    if ($companyId <= 0 && !empty($company)) {
+        // Look up by name for this user
+        $stmtComp = $pdo->prepare("SELECT id FROM companies WHERE name = :name AND user_id = :user_id");
+        $stmtComp->execute(['name' => $company, 'user_id' => $userId]);
+        $existingCompId = $stmtComp->fetchColumn();
+        
+        if ($existingCompId) {
+            $companyId = $existingCompId;
+        } else {
+            // Create new company
+            $stmtNewComp = $pdo->prepare("INSERT INTO companies (user_id, name, lead_source) VALUES (:user_id, :name, :lead_source)");
+            $stmtNewComp->execute([
+                'user_id' => $userId,
+                'name' => $company,
+                'lead_source' => $leadSource
+            ]);
+            $companyId = $pdo->lastInsertId();
+        }
+    }
+    $finalCompanyId = ($companyId > 0) ? $companyId : null;
+
     // Insert into database
     try {
         $sql = "INSERT INTO contacts (
-                    user_id, first_name, last_name, full_name, job_title, company, 
+                    user_id, company_id, first_name, last_name, full_name, job_title, company, 
                     phone, alternate_phone, email, alternate_email, website, linkedin_url, 
                     address, city, state, country, postal_code, industry, lead_source, date_met, place_met, 
                     follow_up_date, status, original_card_image, source, ocr_raw_text
                 ) VALUES (
-                    :user_id, :first_name, :last_name, :full_name, :job_title, :company, 
+                    :user_id, :company_id, :first_name, :last_name, :full_name, :job_title, :company, 
                     :phone, :alternate_phone, :email, :alternate_email, :website, :linkedin_url, 
                     :address, :city, :state, :country, :postal_code, :industry, :lead_source, :date_met, :place_met, 
                     :follow_up_date, :status, :original_card_image, :source, :ocr_raw_text
@@ -160,6 +183,7 @@ try {
         $stmt = $pdo->prepare($sql);
         $stmt->execute([
             'user_id' => $userId,
+            'company_id' => $finalCompanyId,
             'first_name' => $firstName !== '' ? $firstName : null,
             'last_name' => $lastName !== '' ? $lastName : null,
             'full_name' => $fullName !== '' ? $fullName : null,
@@ -190,6 +214,17 @@ try {
         $contactId = $pdo->lastInsertId();
     } catch (\PDOException $e) {
         throw new \PDOException("[INSERT contacts FAILED] user_id=$userId. Error: " . $e->getMessage(), (int)$e->getCode(), $e);
+    }
+
+    // Link event if specified
+    $eventId = isset($_POST['event_id']) ? intval($_POST['event_id']) : 0;
+    if ($eventId > 0) {
+        try {
+            $stmtEventLink = $pdo->prepare("INSERT IGNORE INTO event_contacts (event_id, contact_id) VALUES (:event_id, :contact_id)");
+            $stmtEventLink->execute(['event_id' => $eventId, 'contact_id' => $contactId]);
+        } catch (\PDOException $e) {
+            throw new \PDOException("[LINK event FAILED] event_id=$eventId, contact_id=$contactId. Error: " . $e->getMessage(), (int)$e->getCode(), $e);
+        }
     }
     
     // If optional notes are provided, save them

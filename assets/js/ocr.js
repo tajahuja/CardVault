@@ -1,6 +1,36 @@
-/**
- * CardVault Browser-based Tesseract.js OCR Workflow & Debug Diagnostics Console
- */
+function setStepStatus(stepNum, status) {
+    const el = document.getElementById('step-ind-' + stepNum);
+    if (!el) return;
+    const dot = el.querySelector('.step-dot');
+    if (status === 'active') {
+        el.style.color = 'var(--primary-color)';
+        dot.style.borderColor = 'var(--primary-color)';
+        dot.style.color = 'var(--primary-color)';
+        dot.style.backgroundColor = 'transparent';
+        dot.innerHTML = stepNum;
+    } else if (status === 'completed') {
+        el.style.color = 'var(--secondary-color)';
+        dot.style.borderColor = 'var(--primary-color)';
+        dot.style.color = '#fff';
+        dot.style.backgroundColor = 'var(--primary-color)';
+        dot.innerHTML = '✓';
+    } else {
+        el.style.color = 'var(--text-muted)';
+        dot.style.borderColor = 'var(--border-color)';
+        dot.style.color = 'var(--text-color)';
+        dot.style.backgroundColor = 'transparent';
+        dot.innerHTML = stepNum;
+    }
+}
+window.setStepStatus = setStepStatus;
+
+function updateEventSource(selectEl) {
+    const leadSrc = document.getElementById('lead_source');
+    if (selectEl && selectEl.value !== '0' && leadSrc) {
+        leadSrc.value = 'Conference';
+    }
+}
+window.updateEventSource = updateEventSource;
 
 document.addEventListener('DOMContentLoaded', () => {
     // Audit Tesseract library availability on load
@@ -50,6 +80,12 @@ window.startOCRFlow = function(imageFile) {
     // Switch to processing layout
     stepCapture.classList.add('hidden');
     stepProcessing.classList.remove('hidden');
+    
+    // Set initial step indicators
+    setStepStatus(1, 'completed');
+    setStepStatus(2, 'active');
+    setStepStatus(3, 'pending');
+    setStepStatus(4, 'pending');
     
     updateProgress('Initializing OCR engine...', 10);
     
@@ -129,6 +165,9 @@ window.startOCRFlow = function(imageFile) {
             
             const extractedText = response.data.text;
             
+            setStepStatus(2, 'completed');
+            setStepStatus(3, 'active');
+            
             // Write output to diagnostics console
             if (dbgCompleted) { dbgCompleted.textContent = 'YES'; dbgCompleted.style.color = 'var(--success-color)'; }
             if (dbgChars) dbgChars.textContent = extractedText.length;
@@ -168,6 +207,7 @@ window.startOCRFlow = function(imageFile) {
         })
         .then(data => {
             if (data.success && data.filename) {
+                setStepStatus(4, 'completed');
                 return data.filename;
             } else {
                 throw new Error(data.message || 'Upload failed.');
@@ -205,6 +245,9 @@ window.startOCRFlow = function(imageFile) {
             populateReviewForm(structuredData);
         }
         
+        // Update parsing step status
+        setStepStatus(3, 'completed');
+        
         // Set preview image to private gateway with temp_name authorization
         document.getElementById('card-review-image').src = `api/view_card.php?temp_name=${filename}`;
         
@@ -213,6 +256,11 @@ window.startOCRFlow = function(imageFile) {
         stepReview.classList.remove('hidden');
     })
     .catch(error => {
+        // Reset step statuses on failure
+        setStepStatus(1, 'reset');
+        setStepStatus(2, 'reset');
+        setStepStatus(3, 'reset');
+        setStepStatus(4, 'reset');
         // Display the actual Javascript error in the debug panel!
         if (dbgRawText) {
             dbgRawText.value = `[DEBUG EXCEPTION CALLED]\nError Message: ${error.message}\nError Details:\n${error.stack || error}`;
@@ -269,6 +317,12 @@ document.addEventListener('DOMContentLoaded', () => {
         previewImg.src = '';
         previewArea.classList.add('hidden');
         dropzone.classList.remove('hidden');
+        
+        // Reset step statuses
+        setStepStatus(1, 'reset');
+        setStepStatus(2, 'reset');
+        setStepStatus(3, 'reset');
+        setStepStatus(4, 'reset');
         
         stepReview.classList.add('hidden');
         stepCapture.classList.remove('hidden');
@@ -401,23 +455,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (dupUpdateBtn) {
         dupUpdateBtn.addEventListener('click', function() {
             if (existingIdForUpdate) {
-                // Switch save route to update contact
-                const form = document.getElementById('save-contact-form');
-                form.action = 'api/update_contact.php';
-                
-                let idInput = document.getElementById('existing-id-input');
-                if (!idInput) {
-                    idInput = document.createElement('input');
-                    idInput.type = 'hidden';
-                    idInput.id = 'existing-id-input';
-                    idInput.name = 'id';
-                    form.appendChild(idInput);
-                }
-                idInput.value = existingIdForUpdate;
-                
-                document.getElementById('ignore_duplicate').value = "1";
-                document.getElementById('duplicate-modal').classList.add('hidden');
-                submitReviewSave();
+                window.location.href = 'contact.php?id=' + existingIdForUpdate;
             }
         });
     }

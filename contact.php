@@ -61,6 +61,34 @@ try {
     $stmtFu->execute(['contact_id' => $contactId, 'user_id' => $userId]);
     $activeFollowUp = $stmtFu->fetch();
 
+    // 1. Fetch Linked Company
+    $linkedCompany = null;
+    if (!empty($contact['company_id'])) {
+        $stmtC = $pdo->prepare("SELECT * FROM companies WHERE id = :id AND user_id = :user_id LIMIT 1");
+        $stmtC->execute(['id' => $contact['company_id'], 'user_id' => $userId]);
+        $linkedCompany = $stmtC->fetch() ?: null;
+    }
+
+    // Fetch all user companies for the link selector dropdown
+    $stmtAllComp = $pdo->prepare("SELECT id, name FROM companies WHERE user_id = :user_id ORDER BY name ASC");
+    $stmtAllComp->execute(['user_id' => $userId]);
+    $allCompanies = $stmtAllComp->fetchAll();
+
+    // 2. Fetch Contact Opportunities
+    $stmtOpps = $pdo->prepare("SELECT * FROM opportunities WHERE contact_id = :contact_id AND user_id = :user_id ORDER BY created_at DESC");
+    $stmtOpps->execute(['contact_id' => $contactId, 'user_id' => $userId]);
+    $contactOpps = $stmtOpps->fetchAll();
+
+    // 3. Fetch Event mapping context
+    $stmtEvs = $pdo->prepare("
+        SELECT e.* FROM events e
+        JOIN event_contacts ec ON e.id = ec.event_id
+        WHERE ec.contact_id = :contact_id AND e.user_id = :user_id
+        ORDER BY e.date DESC
+    ");
+    $stmtEvs->execute(['contact_id' => $contactId, 'user_id' => $userId]);
+    $contactEvents = $stmtEvs->fetchAll();
+
 } catch (\PDOException $e) {
     error_log("Contact detail load DB error: " . $e->getMessage());
     echo '<div class="alert alert-danger">An error occurred while loading contact details.</div>';
@@ -163,6 +191,47 @@ $websiteUrl = clean_url($contact['website']);
                     <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 0.5rem;"><?php echo e($contact['job_title'] ?: 'No Job Title'); ?> — <strong style="color: var(--secondary-color);"><?php echo e($contact['company'] ?: 'No Company'); ?></strong></p>
                     <span class="badge badge-<?php echo $statusClass; ?>"><?php echo e($contact['status']); ?></span>
                 </div>
+            </div>
+        </div>
+
+        <!-- B2B CRM Company Widget -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header"><h3 class="card-title">🏢 B2B CRM Company Association</h3></div>
+            <div class="card-body">
+                <?php if ($linkedCompany): ?>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <h4 style="margin: 0; font-size: 1.1rem;">
+                                <a href="company.php?id=<?php echo $linkedCompany['id']; ?>" class="text-primary" style="text-decoration: none; font-weight: bold;">
+                                    🏢 <?php echo htmlspecialchars($linkedCompany['name']); ?>
+                                </a>
+                            </h4>
+                            <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0.25rem 0 0 0;">
+                                Industry: <?php echo htmlspecialchars($linkedCompany['industry'] ?? 'N/A'); ?> · Location: <?php echo htmlspecialchars($linkedCompany['location'] ?? 'N/A'); ?>
+                            </p>
+                        </div>
+                        <button type="button" class="btn btn-danger btn-sm" id="unlink-company-btn" data-contact="<?php echo $contactId; ?>">Unlink Company</button>
+                    </div>
+                <?php else: ?>
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                        <p style="font-size: 0.9rem; color: var(--text-muted); margin: 0;">This contact is not currently associated with a B2B Company record.</p>
+                        <div style="display: flex; gap: 0.5rem; align-items: center;">
+                            <select id="link-company-id" name="company_id" style="flex-grow: 1; padding: 0.45rem; margin: 0; font-size: 0.9rem;">
+                                <option value="0">-- Select Existing Company --</option>
+                                <?php foreach ($allCompanies as $compOpt): ?>
+                                    <option value="<?php echo $compOpt['id']; ?>"><?php echo htmlspecialchars($compOpt['name']); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <button type="button" class="btn btn-primary btn-sm" id="link-company-btn" style="padding: 0.45rem 1rem;" data-contact="<?php echo $contactId; ?>">Link</button>
+                        </div>
+                        <?php if (!empty($contact['company'])): ?>
+                            <div style="border-top: 1px dashed var(--border-color); padding-top: 0.75rem; display: flex; justify-content: space-between; align-items: center;">
+                                <span style="font-size: 0.85rem; color: var(--text-muted);">Scanned Company Text: <strong><?php echo htmlspecialchars($contact['company']); ?></strong></span>
+                                <button type="button" class="btn btn-secondary btn-sm" id="create-link-company-btn" data-contact="<?php echo $contactId; ?>" data-name="<?php echo htmlspecialchars($contact['company']); ?>">Create & Link</button>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
 
@@ -309,6 +378,70 @@ $websiteUrl = clean_url($contact['website']);
                         No notes yet. Add one above.
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- Opportunities Card -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <h3 class="card-title">📈 Sales Opportunities</h3>
+                <a href="pipeline.php" class="btn btn-secondary btn-sm" style="font-size: 0.8rem; padding: 0.3rem 0.6rem;">Kanban Board</a>
+            </div>
+            <div class="card-body" style="padding: 0;">
+                <?php if (empty($contactOpps)): ?>
+                    <p style="padding: 1.5rem; text-align: center; color: var(--text-muted); margin: 0; font-size: 0.9rem;">No active opportunities mapped to this contact.</p>
+                <?php else: ?>
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                            <thead>
+                                <tr style="text-align: left; background-color: var(--background-color); border-bottom: 1px solid var(--border-color);">
+                                    <th style="padding: 0.5rem 1rem;">Deal Name</th>
+                                    <th style="padding: 0.5rem 1rem;">Value</th>
+                                    <th style="padding: 0.5rem 1rem;">Stage</th>
+                                    <th style="padding: 0.5rem 1rem;">Win Prob</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($contactOpps as $opp): ?>
+                                    <tr style="border-bottom: 1px solid var(--border-color);">
+                                        <td style="padding: 0.5rem 1rem; font-weight: 500;"><?php echo htmlspecialchars($opp['name']); ?></td>
+                                        <td style="padding: 0.5rem 1rem;">₹<?php echo number_format($opp['value'], 2); ?></td>
+                                        <td style="padding: 0.5rem 1rem;"><span class="badge badge-info" style="font-size: 0.75rem;"><?php echo htmlspecialchars($opp['stage']); ?></span></td>
+                                        <td style="padding: 0.5rem 1rem;"><?php echo $opp['probability']; ?>%</td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <!-- Events Met Card -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header"><h3 class="card-title">📅 Networking Events Met At</h3></div>
+            <div class="card-body" style="padding: 0;">
+                <?php if (empty($contactEvents)): ?>
+                    <p style="padding: 1.5rem; text-align: center; color: var(--text-muted); margin: 0; font-size: 0.9rem;">No networking events mapped for this contact.</p>
+                <?php else: ?>
+                    <ul style="list-style: none; padding: 0; margin: 0;">
+                        <?php foreach ($contactEvents as $ev): ?>
+                            <li style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <a href="event.php?id=<?php echo $ev['id']; ?>" class="text-primary" style="text-decoration: none; font-weight: bold;">
+                                        📅 Thailand <?php echo htmlspecialchars($ev['name']); ?>
+                                    </a>
+                                    <span style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-top: 0.15rem;">
+                                        Type: <?php echo htmlspecialchars($ev['type']); ?> · Location: <?php echo htmlspecialchars($ev['location'] ?? 'N/A'); ?>
+                                    </span>
+                                </div>
+                                <div style="font-size: 0.8rem; color: var(--text-muted);">
+                                    <?php echo date('M d, Y', strtotime($ev['date'])); ?>
+                                </div>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                <?php endif; ?>
             </div>
         </div>
 
@@ -974,6 +1107,134 @@ $websiteUrl = clean_url($contact['website']);
         createFuForm.addEventListener('submit', function(e) {
             e.preventDefault();
             submitFollowUpForm(new FormData(this));
+        });
+    }
+
+    // B2B Company Widget Handlers
+    const linkCompBtn = document.getElementById('link-company-btn');
+    if (linkCompBtn) {
+        linkCompBtn.addEventListener('click', function() {
+            const companyId = document.getElementById('link-company-id').value;
+            const contactId = this.getAttribute('data-contact');
+            const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+            
+            if (companyId === '0') {
+                alert('Please select a company to link.');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('action', 'assign_contact');
+            formData.append('company_id', companyId);
+            formData.append('contact_id', contactId);
+            formData.append('csrf_token', csrfToken);
+            
+            fetch('api/companies.php', {
+                method: 'POST',
+                body: formData,
+                headers: { 'Accept': 'application/json' }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert(data.message || 'Linking failed.');
+                }
+            })
+            .catch(err => alert('Error: ' + err.message));
+        });
+    }
+
+    const unlinkCompBtn = document.getElementById('unlink-company-btn');
+    if (unlinkCompBtn) {
+        unlinkCompBtn.addEventListener('click', function() {
+            if (!confirm('Are you sure you want to unlink this contact from the company?')) return;
+            const contactId = this.getAttribute('data-contact');
+            const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+            
+            const formData = new FormData();
+            formData.append('action', 'assign_contact');
+            formData.append('company_id', '0');
+            formData.append('contact_id', contactId);
+            formData.append('csrf_token', csrfToken);
+            
+            fetch('api/companies.php', {
+                method: 'POST',
+                body: formData,
+                headers: { 'Accept': 'application/json' }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert(data.message || 'Unlinking failed.');
+                }
+            })
+            .catch(err => alert('Error: ' + err.message));
+        });
+    }
+
+    const createLinkCompBtn = document.getElementById('create-link-company-btn');
+    if (createLinkCompBtn) {
+        createLinkCompBtn.addEventListener('click', function() {
+            const contactId = this.getAttribute('data-contact');
+            const compName = this.getAttribute('data-name');
+            const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+            
+            if (!compName) return;
+            
+            // Step 1: Create company
+            const formCreate = new FormData();
+            formCreate.append('action', 'create');
+            formCreate.append('name', compName);
+            formCreate.append('csrf_token', csrfToken);
+            
+            createLinkCompBtn.disabled = true;
+            createLinkCompBtn.textContent = 'Creating...';
+            
+            fetch('api/companies.php', {
+                method: 'POST',
+                body: formCreate,
+                headers: { 'Accept': 'application/json' }
+            })
+            .then(res => {
+                return res.json().then(data => {
+                    if (!res.ok) throw new Error(data.message || 'Failed to create company.');
+                    return data;
+                });
+            })
+            .then(data => {
+                const newCompanyId = data.id;
+                
+                // Step 2: Assign contact
+                const formAssign = new FormData();
+                formAssign.append('action', 'assign_contact');
+                formAssign.append('company_id', newCompanyId);
+                formAssign.append('contact_id', contactId);
+                formAssign.append('csrf_token', csrfToken);
+                
+                return fetch('api/companies.php', {
+                    method: 'POST',
+                    body: formAssign,
+                    headers: { 'Accept': 'application/json' }
+                });
+            })
+            .then(res => {
+                return res.json().then(data => {
+                    if (!res.ok) throw new Error(data.message || 'Failed to link company.');
+                    return data;
+                });
+            })
+            .then(() => {
+                window.location.reload();
+            })
+            .catch(err => {
+                alert(err.message);
+                createLinkCompBtn.disabled = false;
+                createLinkCompBtn.textContent = 'Create & Link';
+            });
         });
     }
 </script>
